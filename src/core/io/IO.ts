@@ -1,4 +1,4 @@
-import IOEventHandler from "../entity/IOEventHandler";
+import IOEventHandler from "../entity/IoEvents";
 import { clamp, clampUp } from "../util/MathUtil";
 import { V, V2d } from "../Vector";
 import { ControllerAxis, ControllerButton } from "./Gamepad";
@@ -40,11 +40,11 @@ export class IOManager {
     };
     document.onkeyup = (e) => this.onKeyUp(e);
 
-    document.onvisibilitychange = (e) => {
+    document.onvisibilitychange = (event) => {
       for (const keyCode of this.keys.keys()) {
         this.keys.set(keyCode, false);
         for (const handler of this.handlers.filtered.onKeyUp) {
-          handler.onKeyUp(keyCode);
+          handler.onKeyUp({ key: keyCode });
         }
       }
     };
@@ -86,15 +86,15 @@ export class IOManager {
     if (gamepad) {
       const buttons = gamepad.buttons.map((button) => button.pressed);
 
-      for (const [buttonIndex, button] of buttons.entries()) {
-        if (button && !this.lastButtons[buttonIndex]) {
+      for (const [button, isDown] of buttons.entries()) {
+        if (isDown && !this.lastButtons[button]) {
           this.setUsingGamepad(true);
           for (const handler of this.handlers.filtered.onButtonDown) {
-            handler.onButtonDown(buttonIndex);
+            handler.onButtonDown({ button });
           }
-        } else if (!button && this.lastButtons[buttonIndex]) {
+        } else if (!isDown && this.lastButtons[button]) {
           for (const handler of this.handlers.filtered.onButtonUp) {
-            handler.onButtonUp(buttonIndex);
+            handler.onButtonUp({ button });
           }
         }
       }
@@ -108,7 +108,7 @@ export class IOManager {
     if (this.usingGamepad != value) {
       this.usingGamepad = value;
       for (const handler of this.handlers.filtered.onInputDeviceChange) {
-        handler.onInputDeviceChange(this.usingGamepad);
+        handler.onInputDeviceChange({ usingGamepad: this.usingGamepad });
       }
     }
   }
@@ -116,7 +116,7 @@ export class IOManager {
   addHandler(handler: IOEventHandler): void {
     this.handlers.add(handler);
     if (handler.onInputDeviceChange) {
-      handler.onInputDeviceChange(this.usingGamepad);
+      handler.onInputDeviceChange({ usingGamepad: this.usingGamepad });
     }
   }
 
@@ -205,7 +205,7 @@ export class IOManager {
     this.keys.set(code, true);
     if (!wasPressed) {
       for (const handler of this.handlers.filtered.onKeyDown) {
-        handler.onKeyDown(code, event);
+        handler.onKeyDown({ key: code, event });
       }
     }
     if (this.shouldPreventDefault(event)) {
@@ -219,7 +219,7 @@ export class IOManager {
     const code = event.code as KeyCode;
     this.keys.set(code, false);
     for (const handler of this.handlers.filtered.onKeyUp) {
-      handler.onKeyUp(code, event);
+      handler.onKeyUp({ key: code, event });
     }
     if (this.shouldPreventDefault(event)) {
       event.preventDefault();

@@ -6,7 +6,9 @@ import { lerpOrSnap } from "../util/MathUtil";
 import { GameRenderer2d } from "./GameRenderer2d";
 import { LayerInfo } from "./LayerInfo";
 
-/** Controls the viewport. */
+/** Controls the viewport.
+ * TODO: Document camera better
+ */
 export class Camera2d extends BaseEntity implements Entity {
   tags = ["camera"];
   persistenceLevel = 100;
@@ -69,18 +71,18 @@ export class Camera2d extends BaseEntity implements Entity {
     return this.position;
   }
 
-  onTick(dt: number) {
+  onTick({ dt }: { dt: number }) {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
   }
 
-  // Center the camera on a position
+  /** Center the camera on a position */
   center([x, y]: V2d) {
     this.x = x;
     this.y = y;
   }
 
-  // Move the camera toward being centered on a position, with a target velocity
+  /** Move the camera toward being centered on a position, with a target velocity */
   smoothCenter([x, y]: V2d, [vx, vy]: V2d = V([0, 0]), smooth: number = 0.9) {
     const dx = (x - this.x) / this.game!.averageFrameDuration;
     const dy = (y - this.y) / this.game!.averageFrameDuration;
@@ -92,12 +94,12 @@ export class Camera2d extends BaseEntity implements Entity {
     this.vy = lerpOrSnap(this.vy, vy, smooth);
   }
 
-  // Move the camera part of the way to the desired zoom.
+  /** Move the camera part of the way to the desired zoom. */
   smoothZoom(z: number, smooth: number = 0.9) {
     this.z = smooth * this.z + (1 - smooth) * z;
   }
 
-  // Returns [width, height] of the viewport in pixels
+  /** Returns [width, height] of the viewport in pixels */
   getViewportSize(): V2d {
     return V(
       this.renderer.canvas.width / this.renderer.app.renderer.resolution,
@@ -120,21 +122,21 @@ export class Camera2d extends BaseEntity implements Entity {
     return { top, bottom, left, right, width, height };
   }
 
-  // Convert screen coordinates to world coordinates
+  /** Convert screen coordinates to world coordinates */
   toWorld([x, y]: V2d, parallax = V(1.0, 1.0)): V2d {
     let p = new Point(x, y);
     p = this.getMatrix(parallax).applyInverse(p, p);
     return V(p.x, p.y);
   }
 
-  // Convert world coordinates to screen coordinates
+  /** Convert world coordinates to screen coordinates */
   toScreen([x, y]: V2d, parallax = V(1.0, 1.0)): V2d {
     let p = new Point(x, y);
     p = this.getMatrix(parallax).apply(p, p);
     return V(p.x, p.y);
   }
 
-  // Creates a transformation matrix to go from screen world space to screen space.
+  /** Creates a transformation matrix to go from screen world space to screen space. */
   getMatrix(
     [px, py]: [number, number] = [1, 1],
     [ax, ay]: V2d = V(0, 0)
@@ -158,7 +160,7 @@ export class Camera2d extends BaseEntity implements Entity {
     );
   }
 
-  // Update the properties of a renderer layer to match this camera
+  /** Update the properties of a renderer layer to match this camera */
   updateLayer(layer: LayerInfo) {
     const container = layer.container;
     if (!layer.paralax.equals([0, 0])) {

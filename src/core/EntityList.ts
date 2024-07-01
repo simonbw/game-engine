@@ -1,78 +1,32 @@
-import Entity from "./entity/Entity";
-import {
-  EntityFilter,
-  hasAfterPhysics,
-  hasBeforeTick,
-  hasBody,
-  hasOnLateRender,
-  hasOnPause,
-  hasOnRender,
-  hasOnResize,
-  hasOnSlowTick,
-  hasOnTick,
-  hasOnUnpause,
-} from "./EntityFilter";
-import { FilterListMap } from "./util/FilterListMap";
-import ListMap from "./util/ListMap";
+import Entity, { GameEventHandler, GameEventName } from "./entity/Entity";
+import { EntityFilter, hasBody } from "./EntityFilter";
+import { FilterMultiMap } from "./util/FilterListMap";
+import MultiMap from "./util/ListMap";
 
 /**
  * Keeps track of entities. Has lots of useful indexes.
  */
 export default class EntityList implements Iterable<Entity> {
+  /** Maps entity ids to entities */
   private idToEntity = new Map<string, Entity>();
-  private tagged = new ListMap<string, Entity>();
-  private handlers = new ListMap<string, Entity>();
-  private filters = new FilterListMap<Entity>();
-
+  /** Maps tags to entities */
+  private tagged = new MultiMap<string, Entity>();
+  /** Maps event types to entities that handle them */
+  private handlers = new MultiMap<GameEventName, Entity>();
+  /** Maps filters to entities that pass them */
+  private filters = new FilterMultiMap<Entity>();
+  /** All entities */
   all = new Set<Entity>();
 
   constructor() {
-    this.addFilter(hasAfterPhysics);
-    this.addFilter(hasBeforeTick);
-    this.addFilter(hasOnRender);
-    this.addFilter(hasOnLateRender);
-    this.addFilter(hasOnTick);
-    this.addFilter(hasOnSlowTick);
-    this.addFilter(hasOnPause);
-    this.addFilter(hasOnUnpause);
-    this.addFilter(hasOnResize);
     this.addFilter(hasBody);
   }
 
-  get withAfterPhysics() {
-    return this.getByFilter(hasAfterPhysics);
-  }
-  get withBeforeTick() {
-    return this.getByFilter(hasBeforeTick);
-  }
-  get withOnRender() {
-    return this.getByFilter(hasOnRender);
-  }
-  get withOnLateRender() {
-    return this.getByFilter(hasOnLateRender);
-  }
-  get withOnTick() {
-    return this.getByFilter(hasOnTick);
-  }
-  get withOnSlowTick() {
-    return this.getByFilter(hasOnSlowTick);
-  }
-  get withOnPause() {
-    return this.getByFilter(hasOnPause);
-  }
-  get withOnUnpause() {
-    return this.getByFilter(hasOnUnpause);
-  }
-  get withOnResize() {
-    return this.getByFilter(hasOnResize);
-  }
   get withBody() {
     return this.getByFilter(hasBody);
   }
 
-  /**
-   * Adds an entity to this list and all sublists and does all the bookkeeping
-   */
+  /** Adds an entity to this list and all sublists and does all the bookkeeping */
   add(entity: Entity) {
     this.all.add(entity);
 
@@ -84,9 +38,9 @@ export default class EntityList implements Iterable<Entity> {
       }
     }
 
-    if (entity.handlers) {
-      for (const handler of Object.keys(entity.handlers)) {
-        this.handlers.add(handler, entity);
+    for (const [key, value] of Object.entries(entity)) {
+      if (key.startsWith("on") && typeof value === "function") {
+        this.handlers.add(key as GameEventName, entity);
       }
     }
 
@@ -98,9 +52,7 @@ export default class EntityList implements Iterable<Entity> {
     }
   }
 
-  /**
-   * Removes an entity from this list and all the sublists and does some bookkeeping
-   */
+  /** Removes an entity from this list and all the sublists and does some bookkeeping */
   remove(entity: Entity) {
     this.all.delete(entity);
 
@@ -112,9 +64,9 @@ export default class EntityList implements Iterable<Entity> {
       }
     }
 
-    if (entity.handlers) {
-      for (const handler of Object.keys(entity.handlers)) {
-        this.handlers.remove(handler, entity);
+    for (const [key, value] of Object.entries(entity)) {
+      if (key.startsWith("on") && typeof value === "function") {
+        this.handlers.remove(key as GameEventName, entity);
       }
     }
 
@@ -123,9 +75,7 @@ export default class EntityList implements Iterable<Entity> {
     }
   }
 
-  /**
-   * Get the entity with the given id.
-   */
+  /** Get the entity with the given id. */
   getById(id: string) {
     return this.idToEntity.get(id);
   }
@@ -141,7 +91,7 @@ export default class EntityList implements Iterable<Entity> {
       return [];
     }
     return this.getTagged(tags[0]).filter((e) =>
-      tags.every((t) => e.tags!.includes(t)),
+      tags.every((t) => e.tags!.includes(t))
     );
   }
 
@@ -164,26 +114,30 @@ export default class EntityList implements Iterable<Entity> {
   }
 
   /**
-   * Removes a filter.
+   * Removes a filter that was added with addFilter().
    */
   removeFilter<T extends Entity>(filter: EntityFilter<T>): void {
     this.filters.removeFilter(filter);
   }
 
   /**
-   * Return all the entities that pass a type guard
-   * Then we could replace the hardCoded filters with something nicer
+   * Return all the entities that pass a type guard.
+   * Pair with addFilter() to make this fast.
    */
   getByFilter<T extends Entity>(filter: EntityFilter<T>): Iterable<T> {
-    const result = this.filters.getFilterList(filter);
+    const result = this.filters.getItems(filter);
     return result ?? [...this.all].filter(filter);
   }
 
   /**
-   * Get all entities that handle a specific event type
+   * Get all entities that handle a specific event type.
    */
-  getHandlers(eventType: string): ReadonlyArray<Entity> {
-    return this.handlers.get(eventType);
+  getHandlers(
+    eventType: GameEventName
+  ): ReadonlyArray<Entity & GameEventHandler<GameEventName>> {
+    return this.handlers.get(eventType) as ReadonlyArray<
+      Entity & GameEventHandler<GameEventName>
+    >;
   }
 
   /**

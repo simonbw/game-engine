@@ -100,7 +100,7 @@ export class SoundInstance extends BaseEntity implements Entity {
     });
   }
 
-  onAdd(game: Game) {
+  onAdd({ game }: { game: Game }) {
     const chain = this.makeChain(game);
     if (this.options.outnode) {
       chain.connect(this.options.outnode());

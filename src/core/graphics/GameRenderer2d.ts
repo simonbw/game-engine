@@ -1,34 +1,59 @@
 import * as Pixi from "pixi.js";
+import { LAYERS, LayerName } from "../../config/layers";
 import { V, V2d } from "../Vector";
-import { GameSprite } from "../entity/Entity";
+import { GameSprite } from "../entity/GameSprite";
 import { Camera2d } from "./Camera2d";
 import { LayerInfo } from "./LayerInfo";
 
+/** Options for the GameRenderer2d constructor */
 export interface GameRenderer2dOptions extends Partial<Pixi.RendererOptions> {}
 
-/** The thing that renders stuff to the screen. Mostly for handling layers. */
+/** The thing that renders stuff to the screen. Mostly for handling layers.
+ * TODO: Document GameRenderer2d better
+ */
 export class GameRenderer2d {
-  layerInfos: Map<string, LayerInfo> = new Map();
+  // TODO: Do we really need to store this ourselves? Can't we just set it on the canvas?
   private cursor: CSSStyleDeclaration["cursor"] = "none";
-  defaultLayer: string = "_default";
-  spriteCount: number = 0;
 
+  /** The number of sprites currently managed by this renderer. Mostly useful for debugging. */
+  public get spriteCount() {
+    return this._spriteCount;
+  }
+  private set spriteCount(value) {
+    this._spriteCount = value;
+  }
+  private _spriteCount: number = 0;
+
+  /** TODO: Document renderer.app */
   app: Pixi.Application;
+
+  /** TODO: Document renderer.camera */
   camera: Camera2d;
 
+  /** TODO: Document renderer.stage */
   get stage(): Pixi.Container {
     return this.app.stage;
   }
 
+  /** TODO: Document renderer.canvas */
   get canvas(): HTMLCanvasElement {
     return this.app.renderer.canvas;
   }
 
-  constructor(private onResize?: ([width, height]: [number, number]) => void) {
+  /** TODO: Document renderer constructor */
+  constructor(
+    private layerInfos: Record<LayerName, LayerInfo>,
+    private defaultLayerName: LayerName,
+    private onResize?: ([width, height]: [number, number]) => void
+  ) {
     this.app = new Pixi.Application();
     this.showCursor();
     this.camera = new Camera2d(this);
-    this.createLayer(this.defaultLayer, new LayerInfo());
+
+    for (const layerInfo of Object.values(LAYERS)) {
+      this.app.stage.addChild(layerInfo.container);
+    }
+
     window.addEventListener("resize", () => this.handleResize());
   }
 
@@ -42,26 +67,16 @@ export class GameRenderer2d {
       })
       .then(() => {
         document.body.appendChild(this.canvas);
-
-        // const makeFullScreen = () => {
-        //   this.canvas.requestFullscreen();
-        //   this.canvas.removeEventListener("click", makeFullScreen);
-        // };
-        // this.canvas.addEventListener("click", makeFullScreen);
       });
   }
 
-  private getLayerInfo(layerName: string) {
-    const layerInfo = this.layerInfos.get(layerName);
-    if (!layerInfo) {
-      throw new Error(`Cannot find layer: ${layerName}`);
-    }
-    return layerInfo;
-  }
-
-  createLayer(name: string, layerInfo: LayerInfo) {
-    this.layerInfos.set(name, layerInfo);
-    this.app.stage.addChild(layerInfo.container);
+  /** TODO: Document request fullscreen */
+  requestFullscreen() {
+    const makeFullScreen = () => {
+      this.canvas.requestFullscreen();
+      this.canvas.removeEventListener("click", makeFullScreen);
+    };
+    this.canvas.addEventListener("click", makeFullScreen);
   }
 
   getHeight(): number {
@@ -96,7 +111,7 @@ export class GameRenderer2d {
 
   // Render the current frame.
   render() {
-    for (const layerInfo of this.layerInfos.values()) {
+    for (const layerInfo of Object.values(this.layerInfos)) {
       this.camera.updateLayer(layerInfo);
     }
     this.app.render();
@@ -106,26 +121,26 @@ export class GameRenderer2d {
   }
 
   addSprite(sprite: GameSprite): GameSprite {
-    const layerName = sprite.layerName ?? this.defaultLayer;
-    this.getLayerInfo(layerName).container.addChild(sprite);
+    const layerName = sprite.layerName ?? this.defaultLayerName;
+    this.layerInfos[layerName].container.addChild(sprite);
     this.spriteCount += 1;
     return sprite;
   }
 
   // Remove a child from a specific layer.
   removeSprite(sprite: GameSprite): void {
-    const layerName = sprite.layerName ?? this.defaultLayer;
-    this.getLayerInfo(layerName).container.removeChild(sprite);
+    const layerName = sprite.layerName ?? this.defaultLayerName;
+    this.layerInfos[layerName].container.removeChild(sprite);
     this.spriteCount -= 1;
   }
 
-  addLayerFilter(filter: Pixi.Filter, layerName: string): void {
-    const layer = this.getLayerInfo(layerName).container;
-    if (!(layer.filters instanceof Array)) {
+  addLayerFilter(filter: Pixi.Filter, layerName: LayerName): void {
+    const container = this.layerInfos[layerName].container;
+    if (!(container.filters instanceof Array)) {
       throw new Error("layer.filters is not an array");
     }
-    layer.filters;
-    layer.filters = [...layer.filters!, filter];
+    container.filters;
+    container.filters = [...container.filters!, filter];
   }
 
   addStageFilter(filter: Pixi.Filter): void {

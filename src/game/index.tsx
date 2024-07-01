@@ -2,8 +2,6 @@ import { TextureStyle } from "pixi.js";
 import Game from "../core/Game";
 import FPSMeter from "../core/util/FPSMeter";
 import { GamePreloader } from "./GamePreloader";
-import { Layer, initLayers } from "./config/layers";
-import GameController from "./entities/controllers/GameController";
 
 // Do this so we can access the game from the console
 declare global {
@@ -25,15 +23,11 @@ async function main() {
   await preloader.waitTillLoaded();
   preloader.destroy();
 
-  initLayers(game);
-
-  game.addEntity(new GameController());
-
   if (process.env.NODE_ENV === "development") {
-    game.addEntity(new FPSMeter(Layer.DEBUG_HUD));
+    const fpsMeter = new FPSMeter();
+    fpsMeter.sprite.layerName = "debugHud";
+    game.addEntity(fpsMeter);
   }
-
-  game.dispatch({ type: "goToMainMenu" });
 }
 
 window.addEventListener("load", main);

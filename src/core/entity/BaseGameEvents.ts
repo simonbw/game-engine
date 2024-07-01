@@ -1,34 +1,31 @@
 import Game from "../Game";
+import { V2d } from "../Vector";
 
-export interface CustomHandlersMap {
-  [eventType: string]: (event: any) => void;
-}
-
-export default interface GameEventHandler {
-  /** Custom event handlers */
-  readonly handlers?: CustomHandlersMap;
+export type BaseGameEvents = {
   /** Called when added to the game */
-  onAdd?(game: Game): void;
+  add: { game: Game };
   /** Called right after being added to the game */
-  afterAdded?(game: Game): void;
+  afterAdded: { game: Game };
   /** Called after physics */
-  afterPhysics?(): void;
+  afterPhysics: void;
   /** Called before the tick happens */
-  beforeTick?(): void;
+  beforeTick: void;
   /** Called before rendering */
-  onRender?(dt: number): void;
+  render: number;
   /** Called _right_ before rendering. This is for special cases only */
-  onLateRender?(dt: number): void;
+  lateRender: { dt: number };
   /** Called during the update tick */
-  onTick?(dt: number): void;
+  tick: { dt: number };
   /** Called less frequently */
-  onSlowTick?(dt: number): void;
+  slowTick: { dt: number };
   /** Called when the game is paused */
-  onPause?(): void;
+  pause: void;
   /** Called when the game is unpaused */
-  onUnpause?(): void;
+  unpause: void;
   /** Called after being destroyed */
-  onDestroy?(game: Game): void;
+  destroy: { game: Game };
   /** Called when the renderer is resized or recreated for some reason */
-  onResize?(size: [number, number]): void;
-}
+  resize: { size: V2d };
+  /** Called when the slow motion factor changes */
+  slowMoChanged: { slowMo: number };
+};

@@ -1,10 +1,14 @@
 import p2, { World } from "p2";
+import { DEFAULT_LAYER, LAYERS } from "../config/layers";
 import ContactList, {
   ContactInfo,
   ContactInfoWithEquations,
 } from "./ContactList";
 import EntityList from "./EntityList";
-import Entity, { WithOwner } from "./entity/Entity";
+import { V } from "./Vector";
+import Entity, { GameEventMap } from "./entity/Entity";
+import { eventHandlerName } from "./entity/EventHandler";
+import { WithOwner } from "./entity/WithOwner";
 import {
   GameRenderer2d,
   GameRenderer2dOptions,
@@ -23,18 +27,14 @@ interface GameOptions {
  * Top Level control structure
  */
 export default class Game {
-  private initialized: boolean = false;
-
   /** Keeps track of entities in lots of useful ways */
   readonly entities: EntityList;
   /** Keeps track of entities that are ready to be removed */
   readonly entitiesToRemove: Set<Entity>;
-
+  /** TODO: Document game.renderer */
   readonly renderer: GameRenderer2d;
-
   /** Manages keyboard/mouse/gamepad state and events. */
   private _io!: IOManager;
-
   get io(): IOManager {
     return this._io;
   }
@@ -70,6 +70,7 @@ export default class Game {
   /** Keep track of how long each frame is taking on average */
   averageFrameDuration = 1 / 60;
 
+  /** TODO: Document game.camera */
   get camera() {
     return this.renderer.camera;
   }
@@ -83,7 +84,7 @@ export default class Game {
   set slowMo(value: number) {
     if (value != this._slowMo) {
       this._slowMo = value;
-      this.dispatch({ type: "slowMoChanged", slowMo: this._slowMo });
+      this.dispatch("slowMoChanged", { slowMo: this._slowMo });
     }
   }
 
@@ -95,7 +96,11 @@ export default class Game {
     this.entities = new EntityList();
     this.entitiesToRemove = new Set();
 
-    this.renderer = new GameRenderer2d(this.onResize.bind(this));
+    this.renderer = new GameRenderer2d(
+      LAYERS,
+      DEFAULT_LAYER,
+      this.onResize.bind(this)
+    );
 
     this.tickIterations = tickIterations;
     // this.world = new World({ gravity: [0, 0] });
@@ -119,13 +124,10 @@ export default class Game {
     rendererOptions?: GameRenderer2dOptions;
   } = {}) {
     await this.renderer.init(rendererOptions);
-    //@ts-ignore(2541)
     this.io = new IOManager(this.renderer.canvas);
     this.addEntity(this.renderer.camera);
 
     window.requestAnimationFrame(() => this.loop(this.lastFrameTime));
-
-    this.initialized = true;
   }
 
   /** See pause() and unpause(). */
@@ -137,9 +139,10 @@ export default class Game {
     }
   }
 
+  /** TODO: Document onResize */
   onResize(size: [number, number]) {
-    for (const entity of this.entities.withOnResize) {
-      entity.onResize(size);
+    for (const entity of this.entities.getHandlers("resize")) {
+      entity.onResize({ size: V(size) });
     }
   }
 
@@ -150,7 +153,7 @@ export default class Game {
   pause() {
     if (!this.paused) {
       this.paused = true;
-      for (const entity of this.entities.withOnPause) {
+      for (const entity of this.entities.getHandlers("pause")) {
         entity.onPause!();
       }
     }
@@ -159,16 +162,19 @@ export default class Game {
   /** Resumes the game and calls onUnpause() handlers. */
   unpause() {
     this.paused = false;
-    for (const entity of this.entities.withOnUnpause) {
+    for (const entity of this.entities.getHandlers("unpause")) {
       entity.onUnpause!();
     }
   }
 
-  /** Dispatch a custom event. */
-  dispatch<T extends { type: string }>(event: T) {
-    const type: string = event.type;
-    for (const entity of this.entities.getHandlers(type)) {
-      entity.handlers![type](event);
+  /** Dispatch an event. */
+  dispatch<EventName extends keyof GameEventMap>(
+    eventName: EventName,
+    data: GameEventMap[EventName]
+  ) {
+    for (const entity of this.entities.getHandlers(eventName)) {
+      const functionName = eventHandlerName(eventName);
+      entity[functionName](data);
     }
   }
 
@@ -176,7 +182,7 @@ export default class Game {
   addEntity = <T extends Entity>(entity: T): T => {
     entity.game = this;
     if (entity.onAdd) {
-      entity.onAdd(this);
+      entity.onAdd({ game: this });
     }
 
     if (!entity.game) {
@@ -219,7 +225,7 @@ export default class Game {
     }
 
     if (entity.onResize) {
-      entity.onResize(this.renderer.getSize());
+      entity.onResize({ size: this.renderer.getSize() });
     }
 
     if (entity.children) {
@@ -230,8 +236,8 @@ export default class Game {
       }
     }
 
-    if (entity.afterAdded) {
-      entity.afterAdded(this);
+    if (entity.onAfterAdded) {
+      entity.onAfterAdded({ game: this });
     }
 
     return entity;
@@ -367,19 +373,19 @@ export default class Game {
     }
 
     if (entity.onDestroy) {
-      entity.onDestroy(this);
+      entity.onDestroy({ game: this });
     }
   }
 
   /** Called before physics. */
   private tick(dt: number) {
     this.ticknumber += 1;
-    for (const entity of this.entities.withBeforeTick) {
+    for (const entity of this.entities.getHandlers("beforeTick")) {
       if (entity.game && !(this.paused && entity.pausable)) {
-        entity.beforeTick();
+        entity.onBeforeTick();
       }
     }
-    for (const entity of this.entities.withOnTick) {
+    for (const entity of this.entities.getHandlers("tick")) {
       if (entity.game && !(this.paused && entity.pausable)) {
         entity.onTick(dt);
       }
@@ -388,7 +394,7 @@ export default class Game {
 
   /** Called before normal ticks */
   private slowTick(dt: number) {
-    for (const entity of this.entities.withOnSlowTick) {
+    for (const entity of this.entities.getHandlers("slowTick")) {
       if (entity.game && !(this.paused && entity.pausable)) {
         entity.onSlowTick(dt);
       }
@@ -398,9 +404,9 @@ export default class Game {
   /** Called after physics. */
   private afterPhysics() {
     this.cleanupEntities();
-    for (const entity of this.entities.withAfterPhysics) {
+    for (const entity of this.entities.getHandlers("afterPhysics")) {
       if (entity.game && !(this.paused && entity.pausable)) {
-        entity.afterPhysics();
+        entity.onAfterPhysics();
       }
     }
   }
@@ -408,14 +414,14 @@ export default class Game {
   /** Called before actually rendering. */
   private render(dt: number) {
     this.cleanupEntities();
-    for (const entity of this.entities.withOnRender) {
+    for (const entity of this.entities.getHandlers("render")) {
       if (entity.game) {
         entity.onRender(dt);
       } else {
         console.warn(`entity doesn't have game`);
       }
     }
-    for (const entity of this.entities.withOnLateRender) {
+    for (const entity of this.entities.getHandlers("lateRender")) {
       if (entity.game) {
         entity.onLateRender(dt);
       }
@@ -434,10 +440,20 @@ export default class Game {
     // If either owner has been removed from the game, we shouldn't do the contact
     if (!(ownerA && !ownerA.game) || (ownerB && !ownerB.game)) {
       if (ownerA?.onBeginContact) {
-        ownerA.onBeginContact(ownerB, shapeA, shapeB, contactEquations);
+        ownerA.onBeginContact({
+          other: ownerB,
+          thisShape: shapeA,
+          otherShape: shapeB,
+          contactEquations,
+        });
       }
       if (ownerB?.onBeginContact) {
-        ownerB.onBeginContact(ownerA, shapeB, shapeA, contactEquations);
+        ownerB.onBeginContact({
+          other: ownerA,
+          thisShape: shapeB,
+          otherShape: shapeA,
+          contactEquations,
+        });
       }
     }
   };
@@ -453,10 +469,18 @@ export default class Game {
     // If either owner has been removed from the game, we shouldn't do the contact
     if (!(ownerA && !ownerA.game) || (ownerB && !ownerB.game)) {
       if (ownerA?.onEndContact) {
-        ownerA.onEndContact(ownerB, shapeA, shapeB);
+        ownerA.onEndContact({
+          other: ownerB,
+          thisShape: shapeA,
+          otherShape: shapeB,
+        });
       }
       if (ownerB?.onEndContact) {
-        ownerB.onEndContact(ownerA, shapeB, shapeA);
+        ownerB.onEndContact({
+          other: ownerA,
+          thisShape: shapeB,
+          otherShape: shapeA,
+        });
       }
     }
   };
@@ -467,10 +491,20 @@ export default class Game {
       const ownerA = shapeA.owner || bodyA.owner;
       const ownerB = shapeB.owner || bodyB.owner;
       if (ownerA?.onContacting) {
-        ownerA.onContacting(ownerB, shapeA, shapeB, contactEquations);
+        ownerA.onContacting({
+          other: ownerB,
+          otherShape: shapeB,
+          thisShape: shapeA,
+          contactEquations,
+        });
       }
       if (ownerB?.onContacting) {
-        ownerB.onContacting(ownerA, shapeB, shapeA, contactEquations);
+        ownerB.onContacting({
+          other: ownerA,
+          otherShape: shapeA,
+          thisShape: shapeB,
+          contactEquations,
+        });
       }
     }
   }
@@ -486,10 +520,10 @@ export default class Game {
     // If either owner has been removed from the game, we shouldn't do the contact
     if (!(ownerA && !ownerA.game) || (ownerB && !ownerB.game)) {
       if (ownerA?.onImpact) {
-        ownerA.onImpact(ownerB);
+        ownerA.onImpact({ other: ownerB });
       }
       if (ownerB?.onImpact) {
-        ownerB.onImpact(ownerA);
+        ownerB.onImpact({ other: ownerA });
       }
     }
   };

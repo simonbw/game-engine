@@ -51,7 +51,7 @@ export default class ReactPreloader extends BaseEntity implements Entity {
     this.addChild(new ReactEntity(() => reactRender(this.progress)));
   }
 
-  async onAdd(game: Game) {
+  async onAdd({ game }: { game: Game }) {
     await Promise.all([
       this.loadFonts(),
       this.loadSounds(game.audio),

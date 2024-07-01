@@ -10,7 +10,6 @@ TODO: Write intro
 4. Run `npm start` to start the dev server
 5. You should now be able to play the game at http://localhost:1234
 
-
 ## Structure of this project
 
 ### `src/`
@@ -18,16 +17,16 @@ TODO: Write intro
 The folder where all our source code (TypeScript) goes.
 
 - `src/index.html` — This is the entrypoint to our code from the browser.
-  This file then imports `src/ld-55/index.tsx` which is the entrypoint to our typescript code.
+  This file then imports `src/game/index.tsx` which is the entrypoint to our typescript code.
 
 - `src/core/` — This is the engine code that I (Simon) have built up over many years and games.
   See [src/core](src/core/) for more details about the engine.
 
-- `src/ld-55/`
+- `src/game/`
   This is where our game's code lives.
   Basically all the code you'll be writing will probably live in here.
 
-- `src/ld-55/index.tsx` — The entrypoint for our TypeScript code on the page. All our code that runs can eventually be traced up to this file.
+- `src/game/index.tsx` — The entrypoint for our TypeScript code on the page. All our code that runs can eventually be traced up to this file.
 
 ### `dist/`
 

@@ -16,7 +16,7 @@ export default class PositionalSoundListener
   id = "positional_sound_listener";
   persistenceLevel = 100;
 
-  onAdd(game: Game) {
+  onAdd({ game }: { game: Game }) {
     // So we can get these all quickly
     game.entities.addFilter(isPositionalSound);
   }

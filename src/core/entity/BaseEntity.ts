@@ -1,12 +1,13 @@
 import p2, { Constraint, Spring } from "p2";
 import Game from "../Game";
-import { clamp } from "../util/MathUtil";
 import { V, V2d } from "../Vector";
-import Entity, { GameSprite } from "./Entity";
-import { CustomHandlersMap } from "./GameEventHandler";
+import { clamp } from "../util/MathUtil";
+import Entity from "./Entity";
+import { GameSprite } from "./GameSprite";
 
 /**
  * Base class for lots of stuff in the game.
+ * TODO: Document BaseEntity better.
  */
 export default abstract class BaseEntity implements Entity {
   bodies?: p2.Body[];
@@ -14,7 +15,6 @@ export default abstract class BaseEntity implements Entity {
   children: Entity[] = [];
   constraints?: Constraint[];
   game: Game | undefined = undefined;
-  handlers: CustomHandlersMap = {};
   parent?: Entity;
   pausable: boolean = true;
   persistenceLevel: number = 0;
@@ -98,7 +98,7 @@ export default abstract class BaseEntity implements Entity {
   wait(
     delay: number = 0,
     onTick?: (dt: number, t: number) => void,
-    timerId?: string,
+    timerId?: string
   ): Promise<void> {
     return new Promise((resolve) => {
       const timer = new Timer(delay, () => resolve(), onTick, timerId);
@@ -113,7 +113,7 @@ export default abstract class BaseEntity implements Entity {
   waitUntil(
     predicate: () => boolean,
     onTick?: (dt: number, t: number) => void,
-    timerId?: string,
+    timerId?: string
   ): Promise<void> {
     return new Promise((resolve) => {
       const timer = new Timer(
@@ -127,7 +127,7 @@ export default abstract class BaseEntity implements Entity {
             timer.timeRemaining = 0;
           }
         },
-        timerId,
+        timerId
       );
       timer.persistenceLevel = this.persistenceLevel;
       this.addChild(timer);
@@ -172,7 +172,7 @@ class Timer extends BaseEntity implements Entity {
     private delay: number,
     endEffect?: () => void,
     duringEffect?: (dt: number, t: number) => void,
-    public timerId?: string,
+    public timerId?: string
   ) {
     super();
     this.timeRemaining = delay;
@@ -180,7 +180,7 @@ class Timer extends BaseEntity implements Entity {
     this.duringEffect = duringEffect;
   }
 
-  onTick(dt: number) {
+  onTick({ dt }: { dt: number }) {
     this.timeRemaining -= dt;
     const t = clamp(1.0 - this.timeRemaining / this.delay);
     this.duringEffect?.(dt, t);

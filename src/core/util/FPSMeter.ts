@@ -1,7 +1,9 @@
 import { Container, Text } from "pixi.js";
+import { LayerName } from "../../config/layers";
 import Game from "../Game";
 import BaseEntity from "../entity/BaseEntity";
-import Entity, { GameSprite } from "../entity/Entity";
+import Entity from "../entity/Entity";
+import { GameSprite } from "../entity/GameSprite";
 import SpatialHashingBroadphase from "../physics/SpatialHashingBroadphase";
 
 const SMOOTHING = 0.95;
@@ -12,7 +14,7 @@ export default class FPSMeter extends BaseEntity implements Entity {
   slowFrameCount: number = 0;
   sprite: Text & GameSprite;
 
-  constructor(layerName?: string) {
+  constructor(layerName?: LayerName) {
     super();
     this.lastUpdate = performance.now();
     this.sprite = new Text({
@@ -33,7 +35,7 @@ export default class FPSMeter extends BaseEntity implements Entity {
     this.sprite.layerName = layerName;
   }
 
-  onAdd(game: Game) {
+  onAdd() {
     this.averageDuration = 1 / 60;
   }
 

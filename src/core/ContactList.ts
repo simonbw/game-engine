@@ -1,5 +1,5 @@
 import p2 from "p2";
-import { WithOwner } from "./entity/Entity";
+import { WithOwner } from "./entity/WithOwner";
 
 export interface ContactInfo {
   bodyA: p2.Body & WithOwner;
@@ -24,7 +24,7 @@ export default class ContactList {
   endContact(contactInfo: ContactInfo) {
     if (shouldTrack(contactInfo)) {
       const index = this.contacts.findIndex((info) =>
-        contactsAreEqual(info, contactInfo),
+        contactsAreEqual(info, contactInfo)
       );
       this.contacts.splice(index, 1);
     }
