@@ -15,7 +15,7 @@ async function main() {
   TextureStyle.defaultOptions.scaleMode = "nearest";
 
   const game = new Game();
-  await game.init({ rendererOptions: { backgroundColor: 0x001800 } });
+  await game.init({ rendererOptions: { backgroundColor: 0x000010 } });
   // Make the game accessible from the console
   window.DEBUG = { game };
 

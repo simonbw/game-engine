@@ -10,7 +10,7 @@
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
     "jsx": "react",
-    "lib": ["es2019", "dom"],
+    "lib": ["ES2023", "dom"],
     "noEmit": true,
     "strict": true,
     "target": "ES6",

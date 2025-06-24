@@ -1,4 +1,4 @@
-import { V2d, V } from "../Vector";
+import { V, V2d } from "../Vector";
 
 // Modulo operator for modular arithmetic
 export function mod(a: number, b: number): number {
@@ -34,7 +34,7 @@ export function lerpOrSnap(
   a: number,
   b: number,
   t: number = 0.5,
-  threshold: number = 0.01,
+  threshold: number = 0.01
 ): number {
   if (Math.abs(b - a) < threshold) {
     return b;
