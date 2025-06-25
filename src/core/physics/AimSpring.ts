@@ -1,5 +1,5 @@
 import { Body, RotationalSpring } from "p2";
-import { angleDelta } from "../util/MathUtil";
+import { angleDelta } from "../../core/util/MathUtil";
 
 export default class AimSpring extends RotationalSpring {
   constructor(bodyA: Body) {
@@ -9,6 +9,7 @@ export default class AimSpring extends RotationalSpring {
       restAngle: 0,
     });
   }
+
   applyForce() {
     const body = this.bodyA;
     const displacement = angleDelta(this.restAngle, body.angle);

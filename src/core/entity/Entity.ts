@@ -31,7 +31,7 @@ export default interface Entity extends EventHandler<GameEventMap> {
   /** TODO: Document entity.id */
   id?: string;
   /** Tags to find entities by */
-  readonly tags?: ReadonlyArray<string>;
+  readonly tags: ReadonlyArray<string>;
 
   /** Children that get added/destroyed along with this entity */
   readonly children?: Entity[];

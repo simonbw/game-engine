@@ -1,4 +1,5 @@
 import Entity, { GameEventHandler, GameEventName } from "./entity/Entity";
+import { handlerNameToEventName } from "./entity/EventHandler";
 import { EntityFilter, hasBody } from "./EntityFilter";
 import { FilterMultiMap } from "./util/FilterListMap";
 import MultiMap from "./util/ListMap";
@@ -38,9 +39,9 @@ export default class EntityList implements Iterable<Entity> {
       }
     }
 
-    for (const [key, value] of Object.entries(entity)) {
-      if (key.startsWith("on") && typeof value === "function") {
-        this.handlers.add(key as GameEventName, entity);
+    for (const methodName of getAllMethods(entity)) {
+      if (methodName.startsWith("on")) {
+        this.handlers.add(handlerNameToEventName(methodName), entity);
       }
     }
 
@@ -64,9 +65,9 @@ export default class EntityList implements Iterable<Entity> {
       }
     }
 
-    for (const [key, value] of Object.entries(entity)) {
-      if (key.startsWith("on") && typeof value === "function") {
-        this.handlers.remove(key as GameEventName, entity);
+    for (const methodName of getAllMethods(entity)) {
+      if (methodName.startsWith("on")) {
+        this.handlers.remove(handlerNameToEventName(methodName), entity);
       }
     }
 
@@ -124,7 +125,9 @@ export default class EntityList implements Iterable<Entity> {
    * Return all the entities that pass a type guard.
    * Pair with addFilter() to make this fast.
    */
-  getByFilter<T extends Entity>(filter: EntityFilter<T>): Iterable<T> {
+  getByFilter<T extends Entity>(
+    filter: EntityFilter<T>
+  ): Iterable<T> & { readonly length: number } {
     const result = this.filters.getItems(filter);
     return result ?? [...this.all].filter(filter);
   }
@@ -146,4 +149,32 @@ export default class EntityList implements Iterable<Entity> {
   [Symbol.iterator]() {
     return this.all[Symbol.iterator]();
   }
+}
+
+function getAllMethods(entity: object): string[] {
+  const methods: string[] = [];
+  let current = entity;
+
+  // Traverse up the prototype chain
+  while (
+    current !== null &&
+    current !== undefined &&
+    current !== Object.prototype
+  ) {
+    // Get own property names of the current object
+    const propertyNames = Object.getOwnPropertyNames(current);
+
+    // Filter out non-function properties and already added methods
+    for (const name of propertyNames as [keyof typeof current]) {
+      // Access on entity and not currentObject because we're looking at prototypes
+      if (typeof entity[name] === "function" && !methods.includes(name)) {
+        methods.push(name);
+      }
+    }
+
+    // Move up the prototype chain
+    current = Object.getPrototypeOf(current);
+  }
+
+  return methods;
 }

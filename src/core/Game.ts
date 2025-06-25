@@ -19,7 +19,7 @@ import { lerp } from "./util/MathUtil";
 
 interface GameOptions {
   audio?: AudioContext;
-  tickIterations?: number;
+  ticksPerSecond?: number;
   world?: World | CustomWorld;
 }
 
@@ -60,8 +60,10 @@ export default class Game {
   ticknumber: number = 0;
   /** The timestamp when the last frame started */
   lastFrameTime: number = window.performance.now();
-  /** Number of ticks that happen per frame */
-  tickIterations: number;
+  /** Number of ticks that happen per frame at regular speed */
+  readonly ticksPerSecond: number;
+  /** Number of seconds to simulate per tick */
+  readonly tickDuration: number;
 
   /** Total amount of game time that has elapsed */
   elapsedTime: number = 0;
@@ -73,6 +75,10 @@ export default class Game {
   /** TODO: Document game.camera */
   get camera() {
     return this.renderer.camera;
+  }
+
+  get averageDt() {
+    return this.slowMo / (this.averageFrameDuration * this.ticksPerSecond);
   }
 
   private _slowMo: number = 1.0;
@@ -92,7 +98,7 @@ export default class Game {
    * Create a new Game.
    * NOTE: You must call .init() before actually using the game.
    */
-  constructor({ audio, tickIterations = 2, world }: GameOptions = {}) {
+  constructor({ audio, ticksPerSecond = 120, world }: GameOptions = {}) {
     this.entities = new EntityList();
     this.entitiesToRemove = new Set();
 
@@ -102,7 +108,8 @@ export default class Game {
       this.onResize.bind(this)
     );
 
-    this.tickIterations = tickIterations;
+    this.ticksPerSecond = ticksPerSecond;
+    this.tickDuration = 1.0 / this.ticksPerSecond;
     // this.world = new World({ gravity: [0, 0] });
     this.world = world ?? new CustomWorld({ gravity: [0, 0] });
     this.world.on("beginContact", this.beginContact, null);
@@ -141,40 +148,38 @@ export default class Game {
 
   /** TODO: Document onResize */
   onResize(size: [number, number]) {
-    for (const entity of this.entities.getHandlers("resize")) {
-      entity.onResize({ size: V(size) });
-    }
+    this.dispatch("resize", { size: V(size) });
   }
 
   /**
    * Pauses the game. This stops physics from running, calls onPause()
    * handlers, and stops updating `pausable` entities.
-   **/
+   */
   pause() {
     if (!this.paused) {
       this.paused = true;
-      for (const entity of this.entities.getHandlers("pause")) {
-        entity.onPause!();
-      }
+      this.dispatch("pause", undefined);
     }
   }
 
   /** Resumes the game and calls onUnpause() handlers. */
   unpause() {
     this.paused = false;
-    for (const entity of this.entities.getHandlers("unpause")) {
-      entity.onUnpause!();
-    }
+    this.dispatch("unpause", undefined);
   }
 
   /** Dispatch an event. */
   dispatch<EventName extends keyof GameEventMap>(
     eventName: EventName,
-    data: GameEventMap[EventName]
+    data: GameEventMap[EventName],
+    respectPause = true
   ) {
+    const effectivelyPaused = respectPause && this.paused;
     for (const entity of this.entities.getHandlers(eventName)) {
-      const functionName = eventHandlerName(eventName);
-      entity[functionName](data);
+      if (entity.game && !(effectivelyPaused && !entity.pausable)) {
+        const functionName = eventHandlerName(eventName);
+        entity[functionName](data);
+      }
     }
   }
 
@@ -185,6 +190,7 @@ export default class Game {
       entity.onAdd({ game: this });
     }
 
+    // If the entity was destroyed during it's onAdd, we shouldn't add it
     if (!entity.game) {
       return entity;
     }
@@ -244,7 +250,7 @@ export default class Game {
   };
 
   /** Shortcut for adding multiple entities. */
-  addEntities<T extends readonly Entity[]>(entities: T): T {
+  addEntities<T extends readonly Entity[]>(...entities: T): T {
     for (const entity of entities) {
       this.addEntity(entity);
     }
@@ -280,6 +286,7 @@ export default class Game {
     }
   }
 
+  private timeToSimulate = 0.0;
   private iterationsRemaining = 0.0;
   /** The main event loop. Run one frame of the game.  */
   private loop(time: number): void {
@@ -309,17 +316,18 @@ export default class Game {
 
     this.slowTick(renderDt * this.slowMo);
 
-    const tickDt = (renderDt / this.tickIterations) * this.slowMo;
-    this.iterationsRemaining += this.tickIterations;
-    for (; this.iterationsRemaining > 1.0; this.iterationsRemaining--) {
-      this.tick(tickDt);
+    this.timeToSimulate += renderDt * this.slowMo;
+    while (this.timeToSimulate >= this.tickDuration) {
+      this.timeToSimulate -= this.tickDuration;
+      this.tick(this.tickDuration);
       if (!this.paused) {
-        const stepDt = tickDt;
+        const stepDt = this.tickDuration;
         this.world.step(stepDt);
         this.cleanupEntities();
         this.contacts();
       }
     }
+
     this.afterPhysics();
 
     this.render(renderDt);
@@ -327,8 +335,7 @@ export default class Game {
 
   getScreenFps(): number {
     const duration = this.averageFrameDuration;
-    const fps = Math.round(1.0 / duration);
-    return fps;
+    return Math.round(1.0 / duration);
   }
 
   /** Actually remove all the entities slated for removal from the game. */
@@ -380,52 +387,26 @@ export default class Game {
   /** Called before physics. */
   private tick(dt: number) {
     this.ticknumber += 1;
-    for (const entity of this.entities.getHandlers("beforeTick")) {
-      if (entity.game && !(this.paused && entity.pausable)) {
-        entity.onBeforeTick();
-      }
-    }
-    for (const entity of this.entities.getHandlers("tick")) {
-      if (entity.game && !(this.paused && entity.pausable)) {
-        entity.onTick(dt);
-      }
-    }
+    this.dispatch("beforeTick", dt);
+    this.dispatch("tick", dt);
   }
 
   /** Called before normal ticks */
   private slowTick(dt: number) {
-    for (const entity of this.entities.getHandlers("slowTick")) {
-      if (entity.game && !(this.paused && entity.pausable)) {
-        entity.onSlowTick(dt);
-      }
-    }
+    this.dispatch("slowTick", dt);
   }
 
   /** Called after physics. */
   private afterPhysics() {
     this.cleanupEntities();
-    for (const entity of this.entities.getHandlers("afterPhysics")) {
-      if (entity.game && !(this.paused && entity.pausable)) {
-        entity.onAfterPhysics();
-      }
-    }
+    this.dispatch("afterPhysics", undefined);
   }
 
   /** Called before actually rendering. */
   private render(dt: number) {
     this.cleanupEntities();
-    for (const entity of this.entities.getHandlers("render")) {
-      if (entity.game) {
-        entity.onRender(dt);
-      } else {
-        console.warn(`entity doesn't have game`);
-      }
-    }
-    for (const entity of this.entities.getHandlers("lateRender")) {
-      if (entity.game) {
-        entity.onLateRender(dt);
-      }
-    }
+    this.dispatch("render", dt);
+    this.dispatch("lateRender", dt);
     this.renderer.render();
   }
 

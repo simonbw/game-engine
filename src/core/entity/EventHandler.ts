@@ -1,3 +1,5 @@
+import { GameEventName } from "./Entity";
+
 /** Utility type to convert an event name to the name of the handler for it */
 export type EventHandlerName<T extends string> = `on${Capitalize<T>}`;
 
@@ -13,3 +15,10 @@ export type EventHandler<EventMap> = {
     string & K
   >]?: EventMap[K] extends void ? () => void : (eventData: EventMap[K]) => void;
 };
+
+/** Converts an event handler method name to the name of the event it handles. */
+export function handlerNameToEventName(handlerName: string): GameEventName {
+  const firstLetter = handlerName[2];
+  const rest = handlerName.slice(3);
+  return (firstLetter.toLowerCase() + rest) as GameEventName;
+}

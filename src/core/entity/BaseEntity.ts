@@ -1,13 +1,14 @@
-import p2, { Constraint, Spring } from "p2";
+import p2, { Body, Constraint, Spring } from "p2";
+import { EntityDef } from "../EntityDef";
 import Game from "../Game";
 import { V, V2d } from "../Vector";
 import { clamp } from "../util/MathUtil";
-import Entity from "./Entity";
-import { GameSprite } from "./GameSprite";
+import { shapeFromDef } from "../util/PhysicsUtils";
+import Entity, { GameEventMap } from "./Entity";
+import { GameSprite, spriteFromDef } from "./GameSprite";
 
 /**
  * Base class for lots of stuff in the game.
- * TODO: Document BaseEntity better.
  */
 export default abstract class BaseEntity implements Entity {
   bodies?: p2.Body[];
@@ -20,8 +21,39 @@ export default abstract class BaseEntity implements Entity {
   persistenceLevel: number = 0;
   springs?: Spring[];
   id?: string;
+  tags: string[] = [];
   sprite?: GameSprite;
   sprites?: GameSprite[];
+
+  constructor(entityDef?: EntityDef) {
+    if (entityDef) {
+      this.loadFromDef(entityDef);
+    }
+  }
+
+  loadFromDef(def: EntityDef): void {
+    if (this.game) {
+      throw new Error(
+        "Can't load from def after entity has been added to game."
+      );
+    }
+
+    if (def.sprites) {
+      if (def.sprites.length === 1) {
+        this.sprite = spriteFromDef(def.sprites[0]);
+      } else {
+        this.sprites = def.sprites.map((spriteDef) => spriteFromDef(spriteDef));
+      }
+    }
+
+    if (def.body) {
+      this.body = new Body({ mass: def.body.mass });
+      for (const shapeDef of def.body.shapes) {
+        const shape = shapeFromDef(shapeDef);
+        this.body.addShape(shape, shape.position, shape.angle);
+      }
+    }
+  }
 
   /** Convert local coordinates to world coordinates. Requires a body */
   localToWorld(localPoint: [number, number]): V2d {
@@ -33,9 +65,20 @@ export default abstract class BaseEntity implements Entity {
     return V(0, 0);
   }
 
+  worldToLocal(worldPoint: [number, number]): V2d {
+    if (this.body) {
+      const result: V2d = V(0, 0);
+      this.body.toLocalFrame(result, worldPoint);
+      return result;
+    }
+    return V(0, 0);
+  }
+
   getPosition(): V2d {
     if (this.body) {
       return V(this.body.position);
+    } else if (this.sprite) {
+      return V(this.sprite.position.x, this.sprite.position.y);
     }
     throw new Error("Position is not implemented for this entity");
   }
@@ -108,6 +151,23 @@ export default abstract class BaseEntity implements Entity {
   }
 
   /**
+   * Fulfills after the given amount of game time.
+   * Use with delay=0 to wait until the next tick.
+   * @param onRender  Do something every render while waiting
+   */
+  waitRender(
+    delay: number = 0,
+    onRender?: (dt: number, t: number) => void,
+    timerId?: string
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      const timer = new RenderTimer(delay, () => resolve(), onRender, timerId);
+      timer.persistenceLevel = this.persistenceLevel;
+      this.addChild(timer);
+    });
+  }
+
+  /**
    * Wait until a condition is filled. Probably not great to use, but seems kinda cool too.
    */
   waitUntil(
@@ -161,6 +221,15 @@ export default abstract class BaseEntity implements Entity {
       }
     }
   }
+
+  /** Dispatch an event. */
+  dispatch<EventName extends keyof GameEventMap>(
+    eventName: EventName,
+    data: GameEventMap[EventName],
+    respectPause?: boolean
+  ) {
+    this.game?.dispatch(eventName, data, respectPause);
+  }
 }
 
 class Timer extends BaseEntity implements Entity {
@@ -180,7 +249,35 @@ class Timer extends BaseEntity implements Entity {
     this.duringEffect = duringEffect;
   }
 
-  onTick({ dt }: { dt: number }) {
+  onTick(dt: number) {
+    this.timeRemaining -= dt;
+    const t = clamp(1.0 - this.timeRemaining / this.delay);
+    this.duringEffect?.(dt, t);
+    if (this.timeRemaining <= 0) {
+      this.endEffect?.();
+      this.destroy();
+    }
+  }
+}
+
+class RenderTimer extends BaseEntity implements Entity {
+  timeRemaining: number = 0;
+  endEffect?: () => void;
+  duringEffect?: (dt: number, t: number) => void;
+
+  constructor(
+    private delay: number,
+    endEffect?: () => void,
+    duringEffect?: (dt: number, t: number) => void,
+    public timerId?: string
+  ) {
+    super();
+    this.timeRemaining = delay;
+    this.endEffect = endEffect;
+    this.duringEffect = duringEffect;
+  }
+
+  onRender(dt: number) {
     this.timeRemaining -= dt;
     const t = clamp(1.0 - this.timeRemaining / this.delay);
     this.duringEffect?.(dt, t);

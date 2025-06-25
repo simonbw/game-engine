@@ -72,12 +72,8 @@ export class IOManager {
   }
 
   // True if the given key is currently pressed down
-  keyIsDown(key: KeyCode): boolean {
+  isKeyDown(key: KeyCode): boolean {
     return Boolean(this.keys.get(key));
-  }
-
-  anyKeyIsDown(keys: readonly KeyCode[]) {
-    return keys.some((key) => this.keyIsDown(key));
   }
 
   // Fire events for gamepad button presses.
@@ -278,16 +274,16 @@ export class IOManager {
       result.iadd(this.getStick("left"));
     }
 
-    if (this.keyIsDown("KeyW") || this.keyIsDown("ArrowUp")) {
+    if (this.isKeyDown("KeyW") || this.isKeyDown("ArrowUp")) {
       result[1] -= 1;
     }
-    if (this.keyIsDown("KeyD") || this.keyIsDown("ArrowRight")) {
+    if (this.isKeyDown("KeyD") || this.isKeyDown("ArrowRight")) {
       result[0] += 1;
     }
-    if (this.keyIsDown("KeyS") || this.keyIsDown("ArrowDown")) {
+    if (this.isKeyDown("KeyS") || this.isKeyDown("ArrowDown")) {
       result[1] += 1;
     }
-    if (this.keyIsDown("KeyA") || this.keyIsDown("ArrowLeft")) {
+    if (this.isKeyDown("KeyA") || this.isKeyDown("ArrowLeft")) {
       result[0] -= 1;
     }
 

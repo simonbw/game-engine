@@ -9,15 +9,15 @@ export type BaseGameEvents = {
   /** Called after physics */
   afterPhysics: void;
   /** Called before the tick happens */
-  beforeTick: void;
+  beforeTick: number;
   /** Called before rendering */
   render: number;
   /** Called _right_ before rendering. This is for special cases only */
-  lateRender: { dt: number };
+  lateRender: number;
   /** Called during the update tick */
-  tick: { dt: number };
+  tick: number;
   /** Called less frequently */
-  slowTick: { dt: number };
+  slowTick: number;
   /** Called when the game is paused */
   pause: void;
   /** Called when the game is unpaused */

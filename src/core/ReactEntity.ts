@@ -17,7 +17,7 @@ export class ReactEntity extends BaseEntity implements Entity {
   }
 
   reactRender() {
-    this.reactRoot.render(this.getReactContent());
+    this.reactRoot?.render(this.getReactContent());
   }
 
   onRender() {

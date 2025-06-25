@@ -71,7 +71,7 @@ export class Camera2d extends BaseEntity implements Entity {
     return this.position;
   }
 
-  onTick({ dt }: { dt: number }) {
+  onTick(dt: number) {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
   }
@@ -83,15 +83,24 @@ export class Camera2d extends BaseEntity implements Entity {
   }
 
   /** Move the camera toward being centered on a position, with a target velocity */
-  smoothCenter([x, y]: V2d, [vx, vy]: V2d = V([0, 0]), smooth: number = 0.9) {
-    const dx = (x - this.x) / this.game!.averageFrameDuration;
-    const dy = (y - this.y) / this.game!.averageFrameDuration;
-    this.smoothSetVelocity(V([vx + dx, vy + dy]), smooth);
+  smoothCenter(
+    [x, y]: V2d,
+    [vx, vy]: V2d = V([0, 0]),
+    stiffness: number = 1.0,
+    damping: number = 1.0
+  ) {
+    const dx = x - this.x;
+    const dy = y - this.y;
+
+    const dt = this.game!.averageDt;
+
+    this.vx += (stiffness * dx - damping * (this.vx - vx)) * dt;
+    this.vy += (stiffness * dy - damping * (this.vy - vy)) * dt;
   }
 
-  smoothSetVelocity([vx, vy]: V2d, smooth: number = 0.9) {
-    this.vx = lerpOrSnap(this.vx, vx, smooth);
-    this.vy = lerpOrSnap(this.vy, vy, smooth);
+  smoothSetVelocity([vx, vy]: V2d, stiffness: number = 0.9) {
+    this.vx = lerpOrSnap(this.vx, vx, stiffness, 0.001);
+    this.vy = lerpOrSnap(this.vy, vy, stiffness, 0.001);
   }
 
   /** Move the camera part of the way to the desired zoom. */

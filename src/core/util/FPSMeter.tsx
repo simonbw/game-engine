@@ -1,41 +1,59 @@
 import { Container, Text } from "pixi.js";
+import React from "react";
 import { LayerName } from "../../config/layers";
-import Game from "../Game";
-import BaseEntity from "../entity/BaseEntity";
-import Entity from "../entity/Entity";
+import Entity, { GameEventMap } from "../entity/Entity";
 import { GameSprite } from "../entity/GameSprite";
 import SpatialHashingBroadphase from "../physics/SpatialHashingBroadphase";
+import { ReactEntity } from "../ReactEntity";
 
 const SMOOTHING = 0.95;
-export default class FPSMeter extends BaseEntity implements Entity {
+export default class FPSMeter extends ReactEntity implements Entity {
   persistenceLevel = 100;
-  lastUpdate: number;
   averageDuration: number = 0;
   slowFrameCount: number = 0;
-  sprite: Text & GameSprite;
+  lastUpdate = performance.now();
+
+  visible = false;
 
   constructor(layerName?: LayerName) {
-    super();
-    this.lastUpdate = performance.now();
-    this.sprite = new Text({
-      text: "",
-      style: {
-        fontSize: 12,
-        fill: "white",
-        align: "left",
-        dropShadow: {
-          color: 0x000000,
-          alpha: 0.5,
-          angle: 0,
-          distance: 0,
-          blur: 2,
-        },
-      },
+    super(() => {
+      const {
+        fps,
+        fps2,
+        bodyCount,
+        hugeBodyCount,
+        kinematicBodyCount,
+        particleBodyCount,
+        dynamicBodyCount,
+        collisions,
+        entityCount,
+        spriteCount,
+      } = this.getStats();
+
+      return (
+        <div
+          className="absolute top-0 left-0 z-1000"
+          style={{ opacity: this.visible ? 1 : 0 }}
+        >
+          <ul className="text-white text-xs font-mono flex gap-4">
+            <li>
+              fps: {fps} ({fps2})
+            </li>
+            <li>
+              bodies: {bodyCount} ({kinematicBodyCount}, {particleBodyCount},{" "}
+              {dynamicBodyCount}, {hugeBodyCount})
+            </li>
+            <li>collisions: {collisions}</li>
+            <li>entities: {entityCount}</li>
+            <li>sprites: {spriteCount}</li>
+          </ul>
+        </div>
+      );
     });
-    this.sprite.layerName = layerName;
   }
 
   onAdd() {
+    super.onAdd();
     this.averageDuration = 1 / 60;
   }
 
@@ -46,7 +64,7 @@ export default class FPSMeter extends BaseEntity implements Entity {
       SMOOTHING * this.averageDuration + (1.0 - SMOOTHING) * duration;
     this.lastUpdate = now;
 
-    this.sprite.text = this.getText();
+    super.onRender();
   }
 
   getStats() {
@@ -67,20 +85,10 @@ export default class FPSMeter extends BaseEntity implements Entity {
     };
   }
 
-  getText() {
-    const {
-      fps,
-      fps2,
-      bodyCount,
-      hugeBodyCount,
-      kinematicBodyCount,
-      particleBodyCount,
-      dynamicBodyCount,
-      collisions,
-      entityCount,
-      spriteCount,
-    } = this.getStats();
-    return `fps: ${fps} (${fps2}) | bodies: ${bodyCount} (${kinematicBodyCount}, ${particleBodyCount}, ${dynamicBodyCount}, ${hugeBodyCount}) | collisions: ${collisions} | entities: ${entityCount} | sprites ${spriteCount}`;
+  onKeyDown({ key }: GameEventMap["keyDown"]) {
+    if (key === "Backquote") {
+      this.visible = !this.visible;
+    }
   }
 }
 

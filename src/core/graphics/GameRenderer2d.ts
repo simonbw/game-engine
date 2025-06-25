@@ -48,7 +48,7 @@ export class GameRenderer2d {
   ) {
     this.app = new Pixi.Application();
     this.showCursor();
-    this.camera = new Camera2d(this);
+    this.camera = new Camera2d(this, V(0, 0));
 
     for (const layerInfo of Object.values(LAYERS)) {
       this.app.stage.addChild(layerInfo.container);
@@ -62,7 +62,7 @@ export class GameRenderer2d {
       .init({
         resizeTo: window,
         autoDensity: true,
-        antialias: false,
+        antialias: true,
         ...pixiOptions,
       })
       .then(() => {

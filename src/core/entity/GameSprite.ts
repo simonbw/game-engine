@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite } from "pixi.js";
+import { Container, Sprite, Graphics } from "pixi.js";
 import { ImageName } from "../../../resources/resources";
 import { LayerName } from "../../config/layers";
 import { SpriteDef } from "../EntityDef";

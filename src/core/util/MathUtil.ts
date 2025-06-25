@@ -1,4 +1,4 @@
-import { V, V2d } from "../Vector";
+import { V2d, V } from "../Vector";
 
 // Modulo operator for modular arithmetic
 export function mod(a: number, b: number): number {
@@ -28,6 +28,16 @@ export function smootherStep(t: number): number {
 
 export function lerp(a: number, b: number, t: number = 0.5): number {
   return (1 - t) * a + t * b;
+}
+
+export function lerpV2d(
+  a: [number, number],
+  b: [number, number],
+  t: number = 0.5
+): V2d {
+  const x = lerp(a[0], b[0], t);
+  const y = lerp(a[1], b[1], t);
+  return V(x, y);
 }
 
 export function lerpOrSnap(
