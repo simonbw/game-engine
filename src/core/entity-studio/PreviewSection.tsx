@@ -1,9 +1,9 @@
 import React, { Fragment, useMemo, useState } from "react";
-import { EntityDef, ShapeDef, SpriteDef } from "../EntityDef";
 import { RESOURCES } from "../../../resources/resources";
 import { LayerName, LAYERS } from "../../config/layers";
-import { objectKeys } from "../util/ObjectUtils";
+import { EntityDef, ShapeDef, SpriteDef } from "../EntityDef";
 import { clamp } from "../util/MathUtil";
+import { objectKeys } from "../util/ObjectUtils";
 
 export const PreviewSection: React.FC<{ entityDef: EntityDef }> = ({
   entityDef,

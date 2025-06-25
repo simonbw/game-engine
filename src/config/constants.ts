@@ -1,3 +1,4 @@
+/** Levels of persistence for entities. Determines at what lifecycle stages the entity is cleaned up. */
 export enum Persistence {
   /** DEFAULT, cleared at the end of each level */
   Level = 0,

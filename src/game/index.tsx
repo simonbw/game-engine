@@ -1,6 +1,7 @@
 import { TextureStyle } from "pixi.js";
 import Game from "../core/Game";
 import FPSMeter from "../core/util/FPSMeter";
+import ExampleEntity from "./ExampleEntity";
 import { GamePreloader } from "./GamePreloader";
 
 // Do this so we can access the game from the console
@@ -25,9 +26,14 @@ async function main() {
 
   if (process.env.NODE_ENV === "development") {
     const fpsMeter = new FPSMeter();
-    fpsMeter.sprite.layerName = "debugHud";
     game.addEntity(fpsMeter);
   }
+
+  game.addEntity(new ExampleEntity());
+  game.dispatch("exampleEvent", {
+    level: 1,
+    message: "Hello from main!",
+  });
 }
 
 window.addEventListener("load", main);

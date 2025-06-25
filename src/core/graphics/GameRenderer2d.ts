@@ -147,8 +147,7 @@ export class GameRenderer2d {
     if (!(this.stage.filters instanceof Array)) {
       throw new Error("stage.filters is not an array");
     }
-    this.stage.filters ??= [];
-    this.stage.filters.push(filter);
+    this.stage.filters = [...(this.stage.filters ?? []), filter];
   }
 
   removeStageFilter(filterToRemove: Pixi.Filter): void {

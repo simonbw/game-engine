@@ -12,6 +12,7 @@
     "jsx": "react",
     "lib": ["ES2023", "dom"],
     "noEmit": true,
+    "skipLibCheck": true,
     "strict": true,
     "target": "ES6",
 

@@ -10,12 +10,39 @@ TODO: Layers documentation
 
 ## Custom Events
 
-TODO: Custom Events documentation
+You can define custom events in `CustomEvent.ts` that will then be available for dispatch via `game.dispatch()` or handling via `entity.onX` methods. For example, defining an example event
+
+```typescript
+export type CustomEvents = {
+  // ...
+  exampleEvent: { level: number; message: string };
+};
+```
+
+You can dispatch this event with
+
+```typescript
+game.dispatch("exampleEvent", { level: 1, message: "example message" });
+```
+
+and react to this event by defining a handler on an entity with
+
+```typescript
+class ExampleEntity extends BaseEntity implements Entity {
+  onExampleEvent({ level, message }: { level: number; message: string }) {
+    console.log("ExampleEntity event received");
+  }
+}
+```
 
 ## Persistence Levels
 
-TODO: Persistence Levels documentation
+Persistence levels determine at what lifecycle stages an entity is cleaned up.
 
 ## Collision Groups
 
 TODO: Collision Groups documentation
+
+```
+
+```

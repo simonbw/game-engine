@@ -1,5 +1,5 @@
 import React from "react";
-import { CollisionGroups } from "../../game/config/CollisionGroups";
+import { CollisionGroups } from "../../config/CollisionGroups";
 import { BodyDef, ShapeDef } from "../EntityDef";
 import { ShapeDefEditor } from "./ShapeDefEditor";
 

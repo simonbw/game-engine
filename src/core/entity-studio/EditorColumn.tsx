@@ -1,7 +1,7 @@
 import React, { ReactNode } from "react";
 import { EntityDef } from "../EntityDef";
-import { SpriteDefsSection } from "./SpriteDefsSection";
 import { BodyDefSection } from "./BodyDefSection";
+import { SpriteDefsSection } from "./SpriteDefsSection";
 
 export const EditorColumn: React.FC<{
   entityDef: EntityDef;

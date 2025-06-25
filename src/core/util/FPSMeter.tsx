@@ -1,8 +1,7 @@
-import { Container, Text } from "pixi.js";
+import { Container } from "pixi.js";
 import React from "react";
 import { LayerName } from "../../config/layers";
 import Entity, { GameEventMap } from "../entity/Entity";
-import { GameSprite } from "../entity/GameSprite";
 import SpatialHashingBroadphase from "../physics/SpatialHashingBroadphase";
 import { ReactEntity } from "../ReactEntity";
 
