@@ -114,7 +114,6 @@ export default class ReactPreloader extends BaseEntity implements Entity {
     this.progress.images.loaded = 0;
     this.progress.images.total = Object.values(this.manifest.images).length;
 
-    console.log("Loading images", this.manifest.images);
     Pixi.Assets.addBundle("images", this.manifest.images);
 
     try {
