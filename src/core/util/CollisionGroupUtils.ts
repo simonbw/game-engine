@@ -28,7 +28,11 @@ export function collisionGroupsToNumber(
   );
 }
 
-export function makeCollisionGroups<T extends readonly string[]>(
+/**
+ * Creates a collision group registry from an array of group names.
+ * Automatically generates bit mask values and includes 'All' and 'None' groups.
+ */
+export function makeCollisionGroups<const T extends readonly string[]>(
   groupNames: T
 ): Record<T[number] | "All" | "None", number> {
   const groups: Record<string, number> = {

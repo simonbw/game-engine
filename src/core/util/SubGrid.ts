@@ -1,6 +1,9 @@
 import { TilePos } from "./TilePos";
 
-// A rectangular subsection of a grid
+/**
+ * Represents a rectangular subsection of a grid with efficient bounds checking.
+ * Used for spatial partitioning and region-based operations on grid data.
+ */
 export class SubGrid {
   constructor(
     public x: number,

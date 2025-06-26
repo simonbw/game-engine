@@ -116,6 +116,10 @@ export class Camera2d extends BaseEntity implements Entity {
     );
   }
 
+  /**
+   * Calculates the world coordinate bounds of the current camera viewport.
+   * Useful for culling, bounds checking, and viewport-relative positioning.
+   */
   getWorldViewport(): {
     top: number;
     bottom: number;

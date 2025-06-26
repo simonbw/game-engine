@@ -6,6 +6,11 @@ const HUGE_LIMIT = 200;
 const DEFAULT_CELL_SIZE = 6;
 const HUGE: number[] = [];
 
+/**
+ * A spatial hashing broadphase collision detection system that divides
+ * space into uniform grid cells. Provides efficient collision pair detection
+ * by only checking bodies within the same cells.
+ */
 export default class SpatialHashingBroadphase extends SAPBroadphase {
   particleBodies: Set<Body> = new Set();
   dynamicBodies: Set<Body> = new Set();

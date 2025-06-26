@@ -1,6 +1,10 @@
 import FilterSet, { Filter } from "./FilterSet";
 
-/** TODO: Document FilterMultiMap */
+/**
+ * A collection that maps filters to sets of items that pass those filters.
+ * Automatically maintains filtered sets as items are added or removed,
+ * providing fast access to subsets without repeated filtering operations.
+ */
 export class FilterMultiMap<T> {
   private sets = new Map<Filter<T, any>, FilterSet<T, any>>();
 

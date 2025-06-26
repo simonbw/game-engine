@@ -4,7 +4,7 @@ import { V, V2d } from "../Vector";
 import { ControllerAxis, ControllerButton } from "./Gamepad";
 import IOHandlerList from "./IOHandlerList";
 import { KeyCode } from "./Keys";
-import * as MouseButtons from "./MouseButtons";
+import { MouseButtons } from "./MouseButtons";
 
 const GAMEPAD_POLLING_FREQUENCY = 250; // Hz
 
@@ -223,7 +223,10 @@ export class IOManager {
     }
   }
 
-  // Return the value of a gamepad axis.
+  /**
+   * Gets the current value of a gamepad axis (stick position).
+   * @returns Axis value normalized to range [-1, 1], or 0 if no gamepad connected
+   */
   getAxis(axis: ControllerAxis): number {
     switch (axis) {
       case ControllerAxis.LEFT_X:
@@ -266,7 +269,11 @@ export class IOManager {
     return gamepad?.buttons[button]?.value ?? 0;
   }
 
-  // Really standard based on WASD, arrow keys, or gamepad
+  /**
+   * Gets standardized movement input from WASD keys, arrow keys, or gamepad left stick.
+   * Combines keyboard and gamepad input with proper priority handling.
+   * @returns Movement vector with components clamped to [-1, 1] range
+   */
   getMovementVector(): V2d {
     const result = V(0, 0);
 

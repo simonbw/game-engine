@@ -79,10 +79,16 @@ export class GameRenderer2d {
     this.canvas.addEventListener("click", makeFullScreen);
   }
 
+  /**
+   * Gets the effective height of the renderer viewport in logical pixels.
+   */
   getHeight(): number {
     return this.app.renderer.height / this.app.renderer.resolution;
   }
 
+  /**
+   * Gets the effective width of the renderer viewport in logical pixels.
+   */
   getWidth(): number {
     return this.app.renderer.width / this.app.renderer.resolution;
   }
@@ -134,6 +140,11 @@ export class GameRenderer2d {
     this.spriteCount -= 1;
   }
 
+  /**
+   * Adds a visual filter effect to a specific rendering layer.
+   * @param filter - Pixi filter to apply to the layer
+   * @param layerName - Name of the layer to apply the filter to
+   */
   addLayerFilter(filter: Pixi.Filter, layerName: LayerName): void {
     const container = this.layerInfos[layerName].container;
     if (!(container.filters instanceof Array)) {

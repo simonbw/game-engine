@@ -2,6 +2,10 @@ import { Box, Circle, Convex, Line, Shape } from "p2";
 import { ShapeDef } from "../EntityDef";
 import { V, V2d } from "../Vector";
 
+/**
+ * Creates a p2.js Line physics shape from two points.
+ * Calculates position, angle, and length automatically.
+ */
 export function lineFromPoints(p1: V2d, p2: V2d): Line {
   const vector = p2.sub(p1);
   const midpoint = p1.add(p2).imul(0.5);

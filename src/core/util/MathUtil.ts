@@ -84,6 +84,12 @@ export function reflectXY(theta: number): number {
   return normalizeAngle(theta - Math.PI);
 }
 
+/**
+ * Converts polar coordinates (angle and radius) to a Cartesian vector.
+ * @param theta - Angle in radians (0 = east, π/2 = north)
+ * @param r - Radius/magnitude
+ * @returns V2d vector in Cartesian coordinates
+ */
 export function polarToVec(theta: number, r: number): V2d {
   return V(r * Math.cos(theta), r * Math.sin(theta));
 }

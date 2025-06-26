@@ -13,6 +13,11 @@ import {
   hasOnRightUp,
 } from "../EntityFilter";
 import FilterSet from "../util/FilterSet";
+/**
+ * Manages collections of IO event handlers with optimized filtering.
+ * Maintains separate filtered sets for different input event types
+ * to enable efficient event dispatching without checking every handler.
+ */
 export default class IOHandlerList implements Iterable<IOEventHandler> {
   all = new Set<IOEventHandler>();
 

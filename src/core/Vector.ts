@@ -1,6 +1,7 @@
 import { lerp } from "./util/MathUtil";
 
 type CompatibleVector = V2d | [number, number] | Float32Array;
+
 export function V(x?: number | CompatibleVector, y?: number) {
   if (x instanceof V2d) {
     return x.clone();
@@ -12,6 +13,16 @@ export function V(x?: number | CompatibleVector, y?: number) {
 
 type NumberTuple = [number, number];
 
+/**
+ * A 2D vector class extending Array that provides comprehensive vector mathematics operations.
+ * Supports both in-place and non-mutating operations for performance optimization.
+ * Can be used as a tuple [x, y] or accessed via .x and .y properties.
+ * 
+ * @example
+ * const v = new V2d(3, 4);
+ * console.log(v.magnitude); // 5
+ * const normalized = v.normalize();
+ */
 export class V2d extends Array implements NumberTuple {
   0: number;
   1: number;
@@ -160,12 +171,22 @@ export class V2d extends Array implements NumberTuple {
     return this;
   }
 
-  /** Limit the magnitude of this vector */
+  /**
+   * Returns a new vector with magnitude limited to the specified maximum.
+   * If current magnitude is less than max, returns unchanged vector.
+   * @param max - Maximum allowed magnitude
+   * @returns New vector with limited magnitude
+   */
   limit(max: number) {
     return this.clone().ilimit(max);
   }
 
-  /** (In Place) Limit the magnitude of this vector */
+  /**
+   * (In-place) Limits this vector's magnitude to the specified maximum.
+   * If current magnitude is less than max, vector remains unchanged.
+   * @param max - Maximum allowed magnitude
+   * @returns This vector for method chaining
+   */
   ilimit(max: number) {
     if (this.magnitude > max) {
       this.magnitude = max;

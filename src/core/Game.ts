@@ -272,7 +272,18 @@ export default class Game {
     return entity;
   }
 
-  /** Remove all non-persistent entities. I think this is kinda sketchy. */
+  /**
+   * Removes all non-persistent entities from the game scene.
+   * Only removes top-level entities (those without parents) to avoid double-cleanup.
+   * 
+   * @param persistenceThreshold - Entities with persistence level <= this value will be removed (default: 0)
+   * @example
+   * // Remove all level-specific entities (Persistence.Level)
+   * game.clearScene();
+   * 
+   * // Remove level and game-specific entities (Persistence.Level and Persistence.Game)
+   * game.clearScene(Persistence.Game);
+   */
   clearScene(persistenceThreshold = 0) {
     for (const entity of this.entities) {
       if (
@@ -333,6 +344,10 @@ export default class Game {
     this.render(renderDt);
   }
 
+  /**
+   * Calculates and returns the current screen frames per second based on average frame duration.
+   * @returns The current FPS rounded to the nearest integer
+   */
   getScreenFps(): number {
     const duration = this.averageFrameDuration;
     return Math.round(1.0 / duration);

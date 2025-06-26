@@ -19,6 +19,11 @@ interface RenderInfo {
   sounds: { loaded: number; total: number };
 }
 
+/**
+ * A React-enabled asset preloader that loads images, sounds, and fonts
+ * with progress tracking. Provides real-time loading feedback through
+ * React UI components and resolves when all assets are ready.
+ */
 export default class ReactPreloader extends BaseEntity implements Entity {
   private _resolve!: () => void;
   private _promise!: Promise<void>;

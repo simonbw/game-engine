@@ -1,7 +1,11 @@
 /** TODO: Document filter */
 export type Filter<T, T2 extends T> = (item: T) => item is T2;
 
-/** A set that will only inlcude things that match the filter */
+/**
+ * A set that only contains items matching a predicate function.
+ * Automatically filters items as they are added, maintaining a clean
+ * subset without manual filtering operations.
+ */
 export default class FilterSet<T, T2 extends T> implements Iterable<T2> {
   private items: Set<T2> = new Set();
 

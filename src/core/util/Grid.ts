@@ -1,5 +1,9 @@
 type Cell = readonly [number, number];
-// A 2 dimensional map.
+/**
+ * A 2D sparse grid data structure for storing values at integer coordinates.
+ * Uses nested objects for efficient storage of sparse data, only allocating
+ * space for coordinates that actually contain values.
+ */
 export default class Grid<T> {
   data: { [x: number]: { [y: number]: T } } = {};
 

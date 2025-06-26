@@ -1,7 +1,11 @@
 import { SubGrid } from "./SubGrid";
 import { TilePos } from "./TilePos";
 
-// A union of rectangular sections of grid
+/**
+ * A union of rectangular grid sections that provides iteration over all
+ * unique coordinate positions across multiple SubGrid rectangles.
+ * Handles overlapping regions by ensuring each coordinate is only yielded once.
+ */
 export default class SubGridSet implements Iterable<TilePos> {
   data: SubGrid[] = [];
 
