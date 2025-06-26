@@ -1,6 +1,5 @@
 import { Container } from "pixi.js";
 import React from "react";
-import { LayerName } from "../../config/layers";
 import Entity, { GameEventMap } from "../entity/Entity";
 import SpatialHashingBroadphase from "../physics/SpatialHashingBroadphase";
 import { ReactEntity } from "../ReactEntity";
@@ -14,7 +13,7 @@ export default class FPSMeter extends ReactEntity implements Entity {
 
   visible = false;
 
-  constructor(layerName?: LayerName) {
+  constructor() {
     super(() => {
       const {
         fps,
@@ -31,10 +30,26 @@ export default class FPSMeter extends ReactEntity implements Entity {
 
       return (
         <div
-          className="absolute top-0 left-0 z-1000"
-          style={{ opacity: this.visible ? 1 : 0 }}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            zIndex: 1000,
+            opacity: this.visible ? 1 : 0,
+          }}
         >
-          <ul className="text-white text-xs font-mono flex gap-4">
+          <ul
+            style={{
+              color: "white",
+              fontSize: "12px",
+              fontFamily: "monospace",
+              display: "flex",
+              gap: "16px",
+              margin: 0,
+              padding: 0,
+              listStyle: "none",
+            }}
+          >
             <li>
               fps: {fps} ({fps2})
             </li>
