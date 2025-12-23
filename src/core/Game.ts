@@ -275,12 +275,12 @@ export default class Game {
   /**
    * Removes all non-persistent entities from the game scene.
    * Only removes top-level entities (those without parents) to avoid double-cleanup.
-   * 
+   *
    * @param persistenceThreshold - Entities with persistence level <= this value will be removed (default: 0)
    * @example
    * // Remove all level-specific entities (Persistence.Level)
    * game.clearScene();
-   * 
+   *
    * // Remove level and game-specific entities (Persistence.Level and Persistence.Game)
    * game.clearScene(Persistence.Game);
    */
@@ -387,10 +387,12 @@ export default class Game {
 
     if (entity.sprite) {
       this.renderer.removeSprite(entity.sprite);
+      entity.sprite.destroy({ children: true });
     }
     if (entity.sprites) {
       for (const sprite of entity.sprites) {
         this.renderer.removeSprite(sprite);
+        sprite.destroy({ children: true });
       }
     }
 
