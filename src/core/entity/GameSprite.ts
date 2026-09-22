@@ -15,7 +15,7 @@ export interface GameSprite extends Container, WithOwner {
 export function loadGameSprite(
   name: ImageName,
   layerName?: LayerName,
-  options?: { anchor?: [number, number]; size?: [number, number] }
+  options?: { anchor?: [number, number]; size?: [number, number] },
 ): Sprite & GameSprite {
   const sprite = Sprite.from(name) as Sprite & GameSprite;
   sprite.layerName = layerName;

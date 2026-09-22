@@ -1,10 +1,12 @@
 import * as Pixi from "pixi.js";
-import { ReactElement } from "react";
+import type { VNode } from "preact";
 import { SoundName } from "../../../resources/resources";
-import Game from "../Game";
+import { Game } from "../Game";
 import { ReactEntity } from "../ReactEntity";
-import BaseEntity from "../entity/BaseEntity";
-import Entity from "../entity/Entity";
+import { BaseEntity } from "../entity/BaseEntity";
+import { Entity } from "../entity/Entity";
+import { on } from "../entity/handler";
+import { FontConfigMap, registerManifestFonts } from "./fonts";
 import { getBiggestSounds, getTotalSoundBytes, loadSound } from "./sounds";
 
 export type ResourceManifest = {
@@ -24,7 +26,7 @@ interface RenderInfo {
  * with progress tracking. Provides real-time loading feedback through
  * React UI components and resolves when all assets are ready.
  */
-export default class ReactPreloader extends BaseEntity implements Entity {
+export class ReactPreloader extends BaseEntity implements Entity {
   private _resolve!: () => void;
   private _promise!: Promise<void>;
 
@@ -45,7 +47,11 @@ export default class ReactPreloader extends BaseEntity implements Entity {
 
   constructor(
     private manifest: ResourceManifest,
-    reactRender: (props: RenderInfo) => ReactElement
+    reactRender: (props: RenderInfo) => VNode,
+    private options: {
+      /** Family/weight/style overrides for manifest fonts. See `registerManifestFonts`. */
+      fontConfigs?: FontConfigMap;
+    } = {},
   ) {
     super();
 
@@ -56,6 +62,7 @@ export default class ReactPreloader extends BaseEntity implements Entity {
     this.addChild(new ReactEntity(() => reactRender(this.progress)));
   }
 
+  @on("add")
   async onAdd({ game }: { game: Game }) {
     await Promise.all([
       this.loadFonts(),
@@ -65,13 +72,13 @@ export default class ReactPreloader extends BaseEntity implements Entity {
     const bytes = getTotalSoundBytes();
 
     console.groupCollapsed(
-      `Audio Loaded: ${(bytes / 2 ** 20).toFixed(1)}MB total`
+      `Audio Loaded: ${(bytes / 2 ** 20).toFixed(1)}MB total`,
     );
 
     getBiggestSounds()
       .slice(0, 5)
       .forEach(([url, size]) =>
-        console.info(url, "\n", `${(size / 1024).toFixed(1)}kB`)
+        console.info(url, "\n", `${(size / 1024).toFixed(1)}kB`),
       );
 
     console.groupEnd();
@@ -87,13 +94,12 @@ export default class ReactPreloader extends BaseEntity implements Entity {
     this.progress.fonts.loaded = 0;
 
     try {
-      await Promise.all(
-        Object.entries(this.manifest.fonts).map(async ([name, src]) => {
-          const fontFace = new FontFace(name, `url(${src})`);
-          document.fonts.add(await fontFace.load());
+      await registerManifestFonts(this.manifest.fonts, {
+        fontConfigs: this.options.fontConfigs,
+        onFontLoaded: () => {
           this.progress.fonts.loaded += 1;
-        })
-      );
+        },
+      });
     } catch (e) {
       console.error("Fonts failed to load", e);
     }
@@ -111,7 +117,7 @@ export default class ReactPreloader extends BaseEntity implements Entity {
           console.warn(`Sound failed to load: ${url}, ${url}`, e);
         }
         this.progress.sounds.loaded += 1;
-      })
+      }),
     );
   }
 
@@ -119,17 +125,19 @@ export default class ReactPreloader extends BaseEntity implements Entity {
     this.progress.images.loaded = 0;
     this.progress.images.total = Object.values(this.manifest.images).length;
 
-    Pixi.Assets.addBundle("images", this.manifest.images);
-
-    try {
-      await Pixi.Assets.loadBundle("images", (progressPercent) => {
+    await Promise.all(
+      Object.entries(this.manifest.images).map(async ([name, url]) => {
+        try {
+          await Pixi.Assets.load({ alias: name, src: url });
+        } catch (e) {
+          console.warn(`Image failed to load: ${url}`, e);
+        }
         this.progress.images.loaded += 1;
-      });
-    } catch (e) {
-      console.error("Images failed to load", e);
-    }
+      }),
+    );
   }
 
+  @on("destroy")
   onDestroy() {
     document.getElementById("preloader")?.remove();
   }

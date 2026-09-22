@@ -1,21 +1,25 @@
-import p2, { Body, Constraint, Spring } from "p2";
+import { LayerName } from "../../config/layers";
+import { TickLayerName } from "../../config/tickLayers";
 import { EntityDef } from "../EntityDef";
-import Game from "../Game";
+import { Game } from "../Game";
 import { V, V2d } from "../Vector";
+import type { Body } from "../physics/body/Body";
+import { createRigid2D } from "../physics/body/bodyFactories";
+import { Constraint } from "../physics/constraints/Constraint";
+import { Spring } from "../physics/springs/Spring";
+import { shapeFromDef } from "../physics/utils/ShapeUtils";
 import { clamp } from "../util/MathUtil";
-import { shapeFromDef } from "../util/PhysicsUtils";
-import Entity, { GameEventMap } from "./Entity";
+import { Entity, GameEventMap } from "./Entity";
 import { GameSprite, spriteFromDef } from "./GameSprite";
+import { on } from "./handler";
 
-/**
- * Base class for lots of stuff in the game.
- */
-export default abstract class BaseEntity implements Entity {
-  bodies?: p2.Body[];
-  body?: p2.Body;
+/** Base class for lots of stuff in the game. */
+export abstract class BaseEntity implements Entity {
+  bodies?: Body[];
+  body?: Body;
   children: Entity[] = [];
   constraints?: Constraint[];
-  game: Game | undefined = undefined;
+  private _game?: Game;
   parent?: Entity;
   pausable: boolean = true;
   persistenceLevel: number = 0;
@@ -24,6 +28,27 @@ export default abstract class BaseEntity implements Entity {
   tags: string[] = [];
   sprite?: GameSprite;
   sprites?: GameSprite[];
+  /** The render layer this entity is associated with */
+  layer?: LayerName;
+  /** The tick layer this entity updates on */
+  tickLayer?: TickLayerName;
+
+  get game(): Game {
+    if (!this._game) {
+      throw new Error(
+        `Entity ${this.constructor.name} accessed 'game' before being added`,
+      );
+    }
+    return this._game;
+  }
+
+  set game(value: Game | undefined) {
+    this._game = value;
+  }
+
+  get isAdded(): boolean {
+    return this._game != null;
+  }
 
   constructor(entityDef?: EntityDef) {
     if (entityDef) {
@@ -32,9 +57,9 @@ export default abstract class BaseEntity implements Entity {
   }
 
   loadFromDef(def: EntityDef): void {
-    if (this.game) {
+    if (this._game) {
       throw new Error(
-        "Can't load from def after entity has been added to game."
+        "Can't load from def after entity has been added to game.",
       );
     }
 
@@ -47,7 +72,10 @@ export default abstract class BaseEntity implements Entity {
     }
 
     if (def.body) {
-      this.body = new Body({ mass: def.body.mass });
+      this.body = createRigid2D({
+        motion: "dynamic",
+        mass: def.body.mass,
+      });
       for (const shapeDef of def.body.shapes) {
         const shape = shapeFromDef(shapeDef);
         this.body.addShape(shape, shape.position, shape.angle);
@@ -56,20 +84,22 @@ export default abstract class BaseEntity implements Entity {
   }
 
   /** Convert local coordinates to world coordinates. Requires a body */
-  localToWorld(localPoint: [number, number]): V2d {
+  localToWorld(localPoint: V2d | [number, number]): V2d {
     if (this.body) {
-      const result: V2d = V(0, 0);
-      this.body.toWorldFrame(result, localPoint);
-      return result;
+      const local = Array.isArray(localPoint)
+        ? V(localPoint[0], localPoint[1])
+        : localPoint;
+      return this.body.toWorldFrame(local);
     }
     return V(0, 0);
   }
 
-  worldToLocal(worldPoint: [number, number]): V2d {
+  worldToLocal(worldPoint: V2d | [number, number]): V2d {
     if (this.body) {
-      const result: V2d = V(0, 0);
-      this.body.toLocalFrame(result, worldPoint);
-      return result;
+      const world = Array.isArray(worldPoint)
+        ? V(worldPoint[0], worldPoint[1])
+        : worldPoint;
+      return this.body.toLocalFrame(world);
     }
     return V(0, 0);
   }
@@ -84,23 +114,21 @@ export default abstract class BaseEntity implements Entity {
   }
 
   get isDestroyed() {
-    return this.game == null;
+    return this._game == null;
   }
 
   // Removes this from the game. You probably shouldn't override this method.
   destroy() {
-    if (this.game) {
-      this.game.removeEntity(this);
+    if (this._game) {
+      this._game.removeEntity(this);
       while (this.children?.length) {
         this.children[this.children.length - 1].destroy();
       }
-      if (this.parent) {
-        const pChildren = this.parent.children!;
-        const index = pChildren.lastIndexOf(this);
-        if (index < 0) {
-          throw new Error(`Parent doesn't have child`);
+      if (this.parent?.children) {
+        const index = this.parent.children.lastIndexOf(this);
+        if (index >= 0) {
+          this.parent.children.splice(index, 1);
         }
-        pChildren.splice(index, 1);
       }
     }
   }
@@ -111,7 +139,12 @@ export default abstract class BaseEntity implements Entity {
       if (changeParent) {
         // This can lead to weird state where a child is added but its parent isn't, dunno if that's bad
         const oldParent = child.parent;
-        oldParent.children!.splice(oldParent.children!.indexOf(child), 1);
+        if (oldParent.children) {
+          const index = oldParent.children.indexOf(child);
+          if (index >= 0) {
+            oldParent.children.splice(index, 1);
+          }
+        }
       } else {
         throw new Error("Child already has a parent.");
       }
@@ -120,8 +153,8 @@ export default abstract class BaseEntity implements Entity {
     this.children = this.children ?? [];
     this.children.push(child);
 
-    if (this.game && !child.game) {
-      this.game.addEntity(child);
+    if (this._game && !child.isAdded) {
+      this._game.addEntity(child);
     }
     return child;
   }
@@ -141,7 +174,7 @@ export default abstract class BaseEntity implements Entity {
   wait(
     delay: number = 0,
     onTick?: (dt: number, t: number) => void,
-    timerId?: string
+    timerId?: string,
   ): Promise<void> {
     return new Promise((resolve) => {
       const timer = new Timer(delay, () => resolve(), onTick, timerId);
@@ -158,7 +191,7 @@ export default abstract class BaseEntity implements Entity {
   waitRender(
     delay: number = 0,
     onRender?: (dt: number, t: number) => void,
-    timerId?: string
+    timerId?: string,
   ): Promise<void> {
     return new Promise((resolve) => {
       const timer = new RenderTimer(delay, () => resolve(), onRender, timerId);
@@ -167,13 +200,11 @@ export default abstract class BaseEntity implements Entity {
     });
   }
 
-  /**
-   * Wait until a condition is filled. Probably not great to use, but seems kinda cool too.
-   */
+  /** Wait until a condition is filled. Probably not great to use, but seems kinda cool too. */
   waitUntil(
     predicate: () => boolean,
     onTick?: (dt: number, t: number) => void,
-    timerId?: string
+    timerId?: string,
   ): Promise<void> {
     return new Promise((resolve) => {
       const timer = new Timer(
@@ -187,16 +218,14 @@ export default abstract class BaseEntity implements Entity {
             timer.timeRemaining = 0;
           }
         },
-        timerId
+        timerId,
       );
       timer.persistenceLevel = this.persistenceLevel;
       this.addChild(timer);
     });
   }
 
-  /**
-   * Remove all timers from this instance. i.e. cancel all 'waits'.
-   */
+  /** Remove all timers from this instance. i.e. cancel all 'waits'. */
   clearTimers(timerId?: string): void {
     if (this.children) {
       const timers = this.children.filter(isTimer);
@@ -208,9 +237,7 @@ export default abstract class BaseEntity implements Entity {
     }
   }
 
-  /**
-   * Update the time remaing on a timer (or all timers).
-   */
+  /** Update the time remaing on a timer (or all timers). */
   updateTimers(value: number = 0, timerId?: string): void {
     if (this.children) {
       const timers = this.children.filter(isTimer);
@@ -226,10 +253,54 @@ export default abstract class BaseEntity implements Entity {
   dispatch<EventName extends keyof GameEventMap>(
     eventName: EventName,
     data: GameEventMap[EventName],
-    respectPause?: boolean
+    respectPause?: boolean,
   ) {
-    this.game?.dispatch(eventName, data, respectPause);
+    if (this._game) {
+      this._game.dispatch(eventName, data, respectPause);
+    }
   }
+
+  // =========================================================================
+  // Optional handler method declarations for autocomplete.
+  // Override these in subclasses and use the @on decorator.
+  // =========================================================================
+
+  // Base game events
+  onAdd?(data: GameEventMap["add"]): void;
+  onAfterAdded?(data: GameEventMap["afterAdded"]): void;
+  onAfterPhysics?(): void;
+  onAfterPhysicsStep?(step: number): void;
+  onRender?(data: GameEventMap["render"]): void;
+  onLateRender?(data: GameEventMap["lateRender"]): void;
+  onTick?(data: GameEventMap["tick"]): void;
+  onSlowTick?(dt: number): void;
+  onPause?(): void;
+  onUnpause?(): void;
+  onDestroy?(data: GameEventMap["destroy"]): void;
+  onResize?(data: GameEventMap["resize"]): void;
+  onSlowMoChanged?(data: GameEventMap["slowMoChanged"]): void;
+
+  // IO events
+  onClick?(): void;
+  onMiddleClick?(): void;
+  onMiddleDown?(): void;
+  onMiddleUp?(): void;
+  onMouseDown?(): void;
+  onMouseUp?(): void;
+  onRightClick?(): void;
+  onRightDown?(): void;
+  onRightUp?(): void;
+  onKeyDown?(data: GameEventMap["keyDown"]): void;
+  onKeyUp?(data: GameEventMap["keyUp"]): void;
+  onButtonDown?(data: GameEventMap["buttonDown"]): void;
+  onButtonUp?(data: GameEventMap["buttonUp"]): void;
+  onInputDeviceChange?(data: GameEventMap["inputDeviceChange"]): void;
+
+  // Physics events
+  onBeginContact?(data: GameEventMap["beginContact"]): void;
+  onEndContact?(data: GameEventMap["endContact"]): void;
+  onContacting?(data: GameEventMap["contacting"]): void;
+  onImpact?(data: GameEventMap["impact"]): void;
 }
 
 class Timer extends BaseEntity implements Entity {
@@ -241,7 +312,7 @@ class Timer extends BaseEntity implements Entity {
     private delay: number,
     endEffect?: () => void,
     duringEffect?: (dt: number, t: number) => void,
-    public timerId?: string
+    public timerId?: string,
   ) {
     super();
     this.timeRemaining = delay;
@@ -249,7 +320,8 @@ class Timer extends BaseEntity implements Entity {
     this.duringEffect = duringEffect;
   }
 
-  onTick(dt: number) {
+  @on("tick")
+  onTick({ dt }: GameEventMap["tick"]) {
     this.timeRemaining -= dt;
     const t = clamp(1.0 - this.timeRemaining / this.delay);
     this.duringEffect?.(dt, t);
@@ -269,7 +341,7 @@ class RenderTimer extends BaseEntity implements Entity {
     private delay: number,
     endEffect?: () => void,
     duringEffect?: (dt: number, t: number) => void,
-    public timerId?: string
+    public timerId?: string,
   ) {
     super();
     this.timeRemaining = delay;
@@ -277,7 +349,8 @@ class RenderTimer extends BaseEntity implements Entity {
     this.duringEffect = duringEffect;
   }
 
-  onRender(dt: number) {
+  @on("render")
+  onRender({ dt }: { dt: number }) {
     this.timeRemaining -= dt;
     const t = clamp(1.0 - this.timeRemaining / this.delay);
     this.duringEffect?.(dt, t);

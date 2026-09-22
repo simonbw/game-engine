@@ -5,15 +5,17 @@ export type EventHandlerName<T extends string> = `on${Capitalize<T>}`;
 
 /** Converts an event name to the name of the event handler method. */
 export function eventHandlerName<T extends string>(
-  eventName: T
+  eventName: T,
 ): EventHandlerName<T> {
   return `on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}` as EventHandlerName<T>;
 }
 
 export type EventHandler<EventMap> = {
-  [K in keyof EventMap as EventHandlerName<
-    string & K
-  >]?: EventMap[K] extends void ? () => void : (eventData: EventMap[K]) => void;
+  [
+    K in keyof EventMap as EventHandlerName<string & K>
+  ]?: EventMap[K] extends void
+    ? () => void | Promise<void>
+    : (eventData: EventMap[K]) => void | Promise<void>;
 };
 
 /** Converts an event handler method name to the name of the event it handles. */

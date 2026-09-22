@@ -16,8 +16,8 @@ export function rgbToHex({ r, g, b }: RGB): number {
 export function hexToRgb(hex: number): RGB {
   return {
     r: hex >> 16,
-    g: (hex >> 8) & 0x0000ff,
-    b: hex & 0x0000ff,
+    g: (hex >> 8) & 0xff,
+    b: hex & 0xff,
   };
 }
 
@@ -41,10 +41,8 @@ export function hexToHsv(hex: number) {
 
 // Converts a hex value into r,g,b components in vec3 form for shaders
 export function hexToVec3(hex: number): [number, number, number] {
-  const r = hex >> 16;
-  const g = (hex >> 8) & 0x0000ff;
-  const b = hex & 0x0000ff;
-  return [r / 255.0, g / 255.0, b / 255.0];
+  const rgb = hexToRgb(hex);
+  return [rgb.r / 255.0, rgb.g / 255.0, rgb.b / 255.0];
 }
 
 // given colors "from" and "to", return a hex array [from, x, y, z, to]
@@ -59,22 +57,25 @@ export function colorRange(from: number, to: number, steps: number): number[] {
   return out;
 }
 
-/**
- * Component wise lerp between colors
- */
+/** Component wise lerp between colors */
 export function colorLerp(from: number, to: number, percentTo: number): number {
-  const rgbFrom = hexToRgb(from);
-  const rgbTo = hexToRgb(to);
+  // Extract color components directly using bit operations
+  const fromR = from >> 16;
+  const fromG = (from >> 8) & 0xff;
+  const fromB = from & 0xff;
 
-  rgbFrom.r = Math.round(rgbFrom.r * (1.0 - percentTo));
-  rgbFrom.g = Math.round(rgbFrom.g * (1.0 - percentTo));
-  rgbFrom.b = Math.round(rgbFrom.b * (1.0 - percentTo));
+  const toR = to >> 16;
+  const toG = (to >> 8) & 0xff;
+  const toB = to & 0xff;
 
-  rgbTo.r = Math.round(rgbTo.r * percentTo);
-  rgbTo.g = Math.round(rgbTo.g * percentTo);
-  rgbTo.b = Math.round(rgbTo.b * percentTo);
+  // Lerp and round in one step using | 0 instead of Math.round()
+  const percentFrom = 1.0 - percentTo;
+  const r = ((fromR * percentFrom + toR * percentTo + 0.5) | 0) & 0xff;
+  const g = ((fromG * percentFrom + toG * percentTo + 0.5) | 0) & 0xff;
+  const b = ((fromB * percentFrom + toB * percentTo + 0.5) | 0) & 0xff;
 
-  return rgbToHex(rgbFrom) + rgbToHex(rgbTo);
+  // Pack directly into hex
+  return (r << 16) | (g << 8) | b;
 }
 
 /** Returns a new lighter color */
@@ -161,7 +162,7 @@ export function hslToRgb({ h, s, l }: HSL): RGB {
  * https://stackoverflow.com/questions/2353211/hsl-to-rgb-color-conversion
  */
 export function rgbToHsl({ r, g, b }: RGB): HSL {
-  (r /= 255), (g /= 255), (b /= 255);
+  ((r /= 255), (g /= 255), (b /= 255));
   var max = Math.max(r, g, b),
     min = Math.min(r, g, b);
   let h: number;
@@ -206,22 +207,22 @@ export function hsvToRgb({ h, s, v }: HSV): RGB {
   t = v * (1 - (1 - f) * s);
   switch (i % 6) {
     case 0:
-      (r = v), (g = t), (b = p);
+      ((r = v), (g = t), (b = p));
       break;
     case 1:
-      (r = q), (g = v), (b = p);
+      ((r = q), (g = v), (b = p));
       break;
     case 2:
-      (r = p), (g = v), (b = t);
+      ((r = p), (g = v), (b = t));
       break;
     case 3:
-      (r = p), (g = q), (b = v);
+      ((r = p), (g = q), (b = v));
       break;
     case 4:
-      (r = t), (g = p), (b = v);
+      ((r = t), (g = p), (b = v));
       break;
     case 5:
-      (r = v), (g = p), (b = q);
+      ((r = v), (g = p), (b = q));
       break;
     default:
       throw new Error("unreachable");

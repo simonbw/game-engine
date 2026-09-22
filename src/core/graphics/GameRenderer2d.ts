@@ -2,7 +2,7 @@ import * as Pixi from "pixi.js";
 import { LAYERS, LayerName } from "../../config/layers";
 import { V, V2d } from "../Vector";
 import { GameSprite } from "../entity/GameSprite";
-import { Camera2d } from "./Camera2d";
+import { Camera2d, ViewportProvider } from "./Camera2d";
 import { LayerInfo } from "./LayerInfo";
 
 /** Options for the GameRenderer2d constructor */
@@ -11,7 +11,7 @@ export interface GameRenderer2dOptions extends Partial<Pixi.RendererOptions> {}
 /** The thing that renders stuff to the screen. Mostly for handling layers.
  * TODO: Document GameRenderer2d better
  */
-export class GameRenderer2d {
+export class GameRenderer2d implements ViewportProvider {
   // TODO: Do we really need to store this ourselves? Can't we just set it on the canvas?
   private cursor: CSSStyleDeclaration["cursor"] = "none";
 
@@ -44,7 +44,7 @@ export class GameRenderer2d {
   constructor(
     private layerInfos: Record<LayerName, LayerInfo>,
     private defaultLayerName: LayerName,
-    private onResize?: ([width, height]: [number, number]) => void
+    private onResize?: ([width, height]: [number, number]) => void,
   ) {
     this.app = new Pixi.Application();
     this.showCursor();
@@ -54,7 +54,14 @@ export class GameRenderer2d {
       this.app.stage.addChild(layerInfo.container);
     }
 
-    window.addEventListener("resize", () => this.handleResize());
+    window.addEventListener("resize", this.handleResize);
+  }
+
+  /** Tear down the Pixi application and remove the canvas from the page. */
+  destroy(): void {
+    window.removeEventListener("resize", this.handleResize);
+    this.canvas.remove();
+    this.app.destroy(false, { children: true });
   }
 
   async init(pixiOptions: GameRenderer2dOptions = {}) {
@@ -97,11 +104,11 @@ export class GameRenderer2d {
     return V(this.getWidth(), this.getHeight());
   }
 
-  handleResize() {
+  handleResize = () => {
     this.app.resizeTo = window;
     this.app.resize();
     this.onResize?.(this.getSize());
-  }
+  };
 
   hideCursor() {
     this.cursor = "none";
@@ -166,7 +173,7 @@ export class GameRenderer2d {
       throw new Error("stage.filters is not an array");
     }
     this.stage.filters = (this.stage.filters ?? []).filter(
-      (filter) => filter != filterToRemove
+      (filter) => filter != filterToRemove,
     );
   }
 }

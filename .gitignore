@@ -4,3 +4,9 @@ dist
 .cache
 .vercel
 .parcel-cache
+test-results/
+playwright-report/
+api-docs/
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+.anthropic_api_key
