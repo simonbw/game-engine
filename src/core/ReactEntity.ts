@@ -1,39 +1,41 @@
-import React from "react";
-import { createRoot, Root } from "react-dom/client";
-import BaseEntity from "./entity/BaseEntity";
-import Entity from "./entity/Entity";
+import { render, VNode } from "preact";
+import { LayerName } from "../config/layers";
+import { BaseEntity } from "./entity/BaseEntity";
+import { Entity, GameEventMap } from "./entity/Entity";
+import { on } from "./entity/handler";
 
-/** Useful for rendering react to the screen when you want it */
+/** Useful for rendering preact to the screen when you want it */
 export class ReactEntity extends BaseEntity implements Entity {
+  layer: LayerName = "hud";
   el!: HTMLDivElement;
 
-  reactRoot!: Root;
-
   constructor(
-    public getReactContent: () => React.ReactElement,
-    public autoRender = true
+    public getReactContent: () => VNode | null,
+    public autoRender = true,
   ) {
     super();
   }
 
   reactRender() {
-    this.reactRoot?.render(this.getReactContent());
+    render(this.getReactContent(), this.el);
   }
 
-  onRender() {
+  @on("render")
+  onRender({}: { dt: number }) {
     if (this.autoRender) {
       this.reactRender();
     }
   }
 
+  @on("add")
   onAdd() {
     this.el = document.createElement("div");
     document.body.append(this.el);
-    this.reactRoot = createRoot(this.el);
   }
 
-  onDestroy() {
+  @on("destroy")
+  onDestroy(_data: GameEventMap["destroy"]) {
+    render(null, this.el);
     this.el.remove();
-    this.reactRoot.unmount();
   }
 }

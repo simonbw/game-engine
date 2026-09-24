@@ -2,25 +2,21 @@
   "compilerOptions": {
     // Module stuff
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "isolatedModules": true,
     "esModuleInterop": true,
+    "experimentalDecorators": true,
 
     "allowImportingTsExtensions": true,
     "allowSyntheticDefaultImports": true,
-    "downlevelIteration": true,
-    "jsx": "react",
-    "lib": ["ES2023", "dom"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "lib": ["ES2024", "dom"],
     "noEmit": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES6",
-
-    // needed because pixi does some weird shit
-    "paths": {
-      "mini-signals": [
-        "./node_modules/resource-loader/typings/mini-signals.d.ts"
-      ]
-    }
+    "target": "ES2022",
+    // V2d extends Array and re-declares `length`; keep assignment semantics for class fields
+    "useDefineForClassFields": false
   }
 }

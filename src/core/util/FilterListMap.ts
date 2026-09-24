@@ -1,4 +1,4 @@
-import FilterSet, { Filter } from "./FilterSet";
+import { Filter, FilterSet } from "./FilterSet";
 
 /**
  * A collection that maps filters to sets of items that pass those filters.
@@ -7,6 +7,12 @@ import FilterSet, { Filter } from "./FilterSet";
  */
 export class FilterMultiMap<T> {
   private sets = new Map<Filter<T, any>, FilterSet<T, any>>();
+
+  constructor(filters: ReadonlyArray<Filter<T, any>> = []) {
+    for (const filter of filters) {
+      this.addFilter(filter);
+    }
+  }
 
   addFilter<T2 extends T>(filter: Filter<T, T2>, all: Iterable<T> = []) {
     if (!this.sets.has(filter)) {

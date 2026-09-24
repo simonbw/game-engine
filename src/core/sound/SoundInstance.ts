@@ -1,7 +1,8 @@
 import { SoundName } from "../../../resources/resources";
-import BaseEntity from "../entity/BaseEntity";
-import Entity from "../entity/Entity";
-import Game from "../Game";
+import { BaseEntity } from "../entity/BaseEntity";
+import { Entity } from "../entity/Entity";
+import { on } from "../entity/handler";
+import { Game } from "../Game";
 import { getSoundBuffer, hasSoundBuffer } from "../resources/sounds";
 import { clamp } from "../util/MathUtil";
 import { rUniform } from "../util/Random";
@@ -18,9 +19,7 @@ export interface SoundOptions {
   outnode?: () => AudioNode;
 }
 
-/**
- * Represents a currently playing sound.
- */
+/** Represents a currently playing sound. */
 export class SoundInstance extends BaseEntity implements Entity {
   tags = ["sound"];
   public readonly continuous: boolean;
@@ -46,7 +45,7 @@ export class SoundInstance extends BaseEntity implements Entity {
   }
 
   set pan(value: number) {
-    if (!this.game) {
+    if (!this.isAdded) {
       this.options.pan = value;
     } else {
       this.panNode.pan.value = value;
@@ -54,7 +53,7 @@ export class SoundInstance extends BaseEntity implements Entity {
   }
 
   get pan(): number {
-    if (!this.game) {
+    if (!this.isAdded) {
       return this.options.pan ?? 0;
     } else {
       return this.panNode.pan.value;
@@ -62,7 +61,7 @@ export class SoundInstance extends BaseEntity implements Entity {
   }
 
   set gain(value: number) {
-    if (!this.game) {
+    if (!this.isAdded) {
       this.options.gain = value;
     } else {
       this.gainNode.gain.value = value;
@@ -70,7 +69,7 @@ export class SoundInstance extends BaseEntity implements Entity {
   }
 
   get gain(): number {
-    if (!this.game) {
+    if (!this.isAdded) {
       return this.options.gain ?? 1;
     } else {
       return this.gainNode.gain.value;
@@ -82,7 +81,7 @@ export class SoundInstance extends BaseEntity implements Entity {
 
   constructor(
     public readonly soundName: SoundName,
-    private options: SoundOptions = {}
+    private options: SoundOptions = {},
   ) {
     super();
     this.speed = options.speed ?? 1.0;
@@ -100,6 +99,7 @@ export class SoundInstance extends BaseEntity implements Entity {
     });
   }
 
+  @on("add")
   onAdd({ game }: { game: Game }) {
     const chain = this.makeChain(game);
     if (this.options.outnode) {
@@ -151,8 +151,9 @@ export class SoundInstance extends BaseEntity implements Entity {
     return this._promise;
   }
 
+  @on("tick")
   onTick() {
-    const now = this.game!.audio.currentTime;
+    const now = this.game.audio.currentTime;
     this.elapsed += (now - this.lastTick) * this.sourceNode.playbackRate.value;
     if (this.continuous) {
       this.elapsed = this.elapsed % this.sourceNode.buffer!.duration;
@@ -170,11 +171,10 @@ export class SoundInstance extends BaseEntity implements Entity {
     }
   }
 
-  handlers = {
-    slowMoChanged: () => {
-      this.updatePlaybackRate();
-    },
-  };
+  @on("slowMoChanged")
+  onSlowMoChanged() {
+    this.updatePlaybackRate();
+  }
 
   pause() {
     if (this.pausable) {
@@ -198,14 +198,14 @@ export class SoundInstance extends BaseEntity implements Entity {
 
   restartSound(startTime: number) {
     this.sourceNode.disconnect();
-    const newNode = this.game!.audio.createBufferSource();
+    const newNode = this.game.audio.createBufferSource();
     newNode.buffer = this.sourceNode.buffer;
     newNode.loop = this.sourceNode.loop;
     this.sourceNode = newNode;
     this.sourceNode.connect(this.panNode);
     this.sourceNode.start(
-      this.game!.audio.currentTime,
-      clamp(startTime, 0, this.sourceNode.buffer!.duration)
+      this.game.audio.currentTime,
+      clamp(startTime, 0, this.sourceNode.buffer!.duration),
     );
   }
 
@@ -213,14 +213,17 @@ export class SoundInstance extends BaseEntity implements Entity {
     this.restartSound(rUniform(0, this.sourceNode.buffer!.duration * 0.99));
   }
 
+  @on("pause")
   onPause() {
     this.pause();
   }
 
+  @on("unpause")
   onUnpause() {
     this.unpause();
   }
 
+  @on("destroy")
   onDestroy() {
     this.sourceNode.stop();
     this._resolve();

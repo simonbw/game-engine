@@ -1,6 +1,6 @@
 import { SoundName } from "../../../resources/resources";
-import Entity from "../entity/Entity";
-import Game from "../Game";
+import { Entity } from "../entity/Entity";
+import { Game } from "../Game";
 import { clamp, lerp } from "../util/MathUtil";
 import { V, V2d } from "../Vector";
 import { SoundInstance, SoundOptions } from "./SoundInstance";
@@ -25,7 +25,7 @@ export class PositionalSound extends SoundInstance implements Entity {
   private maxDistance;
 
   set distanceGain(value: number) {
-    if (!this.game) {
+    if (!this.isAdded) {
       this._distanceGain = value;
     } else {
       this.distanceGainNode.gain.value = value;
@@ -35,7 +35,7 @@ export class PositionalSound extends SoundInstance implements Entity {
   constructor(
     soundName: SoundName,
     private position: V2d = V(0, 0),
-    options: PositionalSoundOptions = {}
+    options: PositionalSoundOptions = {},
   ) {
     super(soundName, options);
     this.maxDistance = options.maxDistance ?? FALL_OFF_DISTANCE;

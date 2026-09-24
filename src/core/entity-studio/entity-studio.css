@@ -1,4 +1,4 @@
-@import "/node_modules/@picocss/pico/css/pico.css";
+@import "npm:@picocss/pico/css/pico.css";
 
 :root {
   --pico-border-radius: 2rem;

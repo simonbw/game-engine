@@ -1,0 +1,13 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/core", "src/game", "src/config"],
+  "entryPointStrategy": "expand",
+  "out": "api-docs",
+  "readme": "CLAUDE.md",
+  "name": "Game Engine",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "navigationLinks": {
+    "GitHub": "https://github.com/simonbw/game-engine"
+  }
+}
