@@ -28,7 +28,7 @@
   "dependencies": {
     "@picocss/pico": "^2.1.1",
     "pixi.js": "^8.21.0",
-    "poly-decomp": "^0.3.0",
+    "poly-decomp-es": "^0.4.2",
     "preact": "^10.29.8"
   },
   "devDependencies": {

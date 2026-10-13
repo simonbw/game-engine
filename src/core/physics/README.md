@@ -87,7 +87,7 @@ particles and similar.
 ### Concave polygons
 
 `utils/fromPolygon.ts` decomposes a concave outline into convex pieces
-(via `poly-decomp`) and adds one `Convex` per piece:
+(via `poly-decomp-es`) and adds one `Convex` per piece:
 
 ```typescript
 import { fromPolygon } from "core/physics/utils/fromPolygon";
