@@ -8,7 +8,7 @@ Custom rigid body physics engine (not a wrapper around another library).
 - **Body** - Single concrete `Body` class tagged by readonly `shape` (`pm2d`/`rigid2d`) and `motion` (`static`/`kinematic`/`dynamic`). Narrowed interface views in `bodyInterfaces.ts`; construct via factories in `bodyFactories.ts` (`createRigid2D`, `createPointMass2D`) for type-level narrowing. Rigid bodies carry scalar `angle`/`angularVelocity`/`angularForce`/`inertia`; point masses ignore them.
 - **Systems** - Per-concern modules in `systems/` (AABB, Damping, Force, Integration, MassProperties, Sleep) operate on partitioned body buckets. The solver step in `World.step()` drives them in order.
 - **Shapes** - Circle, Box, Convex, Capsule, Particle, Line, Plane, Heightfield attached to bodies. `utils/fromPolygon.ts` decomposes concave outlines into `Convex` pieces.
-- **Collision** - Broadphase (spatial hashing) → Narrowphase → Contact generation
+- **Collision** - Broadphase (spatial hashing or SAP) → Narrowphase → Contact generation
 
 ## Key Patterns
 
@@ -62,6 +62,39 @@ checks. `SolverWorkspace` holds a dedicated array per shape group, and
 `runIteration` dispatches to the matching `iterateXxxBatch` function. See
 `GSSolver.ts` for the iterator implementations.
 
+### Solver Workspace Layout
+
+`SolverWorkspace` assigns each body an integer index `i` for the duration of a
+solve and stores per-body state in flat `Float64Array`s:
+
+- `vlambda[i * 2]`, `vlambda[i * 2 + 1]` — accumulated linear velocity change
+- `wlambda[i]` — accumulated angular velocity change
+- `invMassSolve[i]`, `invInertia[i]` — scalar inverse mass / inertia (zero for
+  static, kinematic and sleeping bodies; `invInertia` is also zero for point
+  masses)
+
+Per-equation `lambda`, `Bs` and `invCs` are `Float32Array`s indexed by the
+equation's slot.
+
+### Friction
+
+With `solverConfig.frictionIterations === 0` (the default) friction equations
+are bounded by a constant slip force and ignore `ContactMaterial.friction`.
+Set `frictionIterations > 0` to derive the bound from the contact force
+(`friction × average normal force`); then frictionless contacts get no
+friction equations at all.
+
+### Per-step objects are reused
+
+Contact and friction equations come from an `EquationPool`, and `Collision`s,
+`CollisionResult`s and their contacts from pools in `CollisionResult.ts` and
+`getContactsFromCollisionPairs.ts`. All of them are released at the start of
+the next step, so they're only good during the step they come from. Anything
+that hands them out (like the contact events) must say so, and callers must copy
+what they keep. A new narrowphase handler fills in contacts from
+`addContact(result)` rather than pushing new objects, and a new shape's
+`computeAABB` must write into `out` when it's given.
+
 ### Substepping
 
 `World.step(dt)` supports splitting the constraint-solve + position-integrate
@@ -82,4 +115,4 @@ is `1` (legacy behavior).
 ## Common Tasks
 
 - **Raycast**: `world.raycast(from, to, options)` - see RaycastOptions for filtering
-- **Body sleeping**: Configure via World's sleepingMode (NO_SLEEPING, BODY_SLEEPING, ISLAND_SLEEPING)
+- **Body sleeping**: Configure via `world.sleepMode` (`SleepMode.NO_SLEEPING`, `BODY_SLEEPING`, `ISLAND_SLEEPING`; the last needs `islandSplit: true`)

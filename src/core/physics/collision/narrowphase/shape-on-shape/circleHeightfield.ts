@@ -3,7 +3,11 @@ import { Body } from "../../../body/Body";
 import { Circle } from "../../../shapes/Circle";
 import { Heightfield } from "../../../shapes/Heightfield";
 import { Shape } from "../../../shapes/Shape";
-import { CollisionResult, createCollisionResult } from "../../CollisionResult";
+import {
+  addContact,
+  CollisionResult,
+  createCollisionResult,
+} from "../../CollisionResult";
 
 // Scratch vectors to avoid per-call allocations
 const _v0 = V();
@@ -81,16 +85,16 @@ export function circleHeightfield(
       // Project candidate to edge
       _projectedPoint.set(_edgeNormal).imul(-d).iadd(_candidate);
 
-      result.contacts.push({
-        worldContactA: V(_edgeNormal)
-          .imul(-r)
-          .isub(bodyA.position)
-          .iadd(offsetA),
-        worldContactB: V(_projectedPoint).isub(bodyB.position),
-        // From the circle (A) into the heightfield (B)
-        normal: V(_edgeNormal).imul(-1),
-        depth: -d,
-      });
+      const added = addContact(result);
+      added.worldContactA
+        .set(_edgeNormal)
+        .imul(-r)
+        .isub(bodyA.position)
+        .iadd(offsetA);
+      added.worldContactB.set(_projectedPoint).isub(bodyB.position);
+      // From the circle (A) into the heightfield (B)
+      added.normal.set(_edgeNormal).imul(-1);
+      added.depth = -d;
     }
   }
 
@@ -107,13 +111,16 @@ export function circleHeightfield(
 
         _normal.set(_dist).inormalize();
 
-        result.contacts.push({
-          worldContactA: V(_normal).imul(-r).isub(bodyA.position).iadd(offsetA),
-          worldContactB: V(_v0).isub(bodyB.position),
-          // From the circle (A) into the heightfield (B)
-          normal: V(_normal).imul(-1),
-          depth: r - _dist.magnitude,
-        });
+        const added = addContact(result);
+        added.worldContactA
+          .set(_normal)
+          .imul(-r)
+          .isub(bodyA.position)
+          .iadd(offsetA);
+        added.worldContactB.set(_v0).isub(bodyB.position);
+        // From the circle (A) into the heightfield (B)
+        added.normal.set(_normal).imul(-1);
+        added.depth = r - _dist.magnitude;
       }
     }
   }
