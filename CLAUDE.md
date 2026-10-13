@@ -39,6 +39,7 @@ The engine follows an Entity-based architecture where everything in the game ext
 - **Rendering**: Layered Pixi sprite system with camera controls
 - **Input**: Centralized IO manager for keyboard, mouse, and gamepad input
 - **Audio**: Web Audio API integration with positional sound support and a persisted master volume
+- **Lighting** (optional): lights with soft shadows from walls, drawn on the GPU, in `src/core/lighting/` (see its `CLAUDE.md`). Off unless the game adds a `LightingManager`
 - **Asset Management**: Automatic type generation for resources in `resources/` folder
 
 ### Project Structure
