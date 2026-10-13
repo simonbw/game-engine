@@ -87,7 +87,8 @@ export function circleHeightfield(
           .isub(bodyA.position)
           .iadd(offsetA),
         worldContactB: V(_projectedPoint).isub(bodyB.position),
-        normal: V(_edgeNormal),
+        // From the circle (A) into the heightfield (B)
+        normal: V(_edgeNormal).imul(-1),
         depth: -d,
       });
     }
@@ -109,7 +110,8 @@ export function circleHeightfield(
         result.contacts.push({
           worldContactA: V(_normal).imul(-r).isub(bodyA.position).iadd(offsetA),
           worldContactB: V(_v0).isub(bodyB.position),
-          normal: V(_normal),
+          // From the circle (A) into the heightfield (B)
+          normal: V(_normal).imul(-1),
           depth: r - _dist.magnitude,
         });
       }

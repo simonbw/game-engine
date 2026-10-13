@@ -267,3 +267,31 @@ test("a heightfield body's AABB covers the heightfield", () => {
   assert.ok(terrain.aabb.lowerBound.x <= -5 && terrain.aabb.upperBound.x >= 5);
   assert.ok(terrain.aabb.lowerBound.y <= 0 && terrain.aabb.upperBound.y >= 2);
 });
+
+test("a ball and a box land on a heightfield", () => {
+  const world = new World();
+  const terrain = createRigid2D({ motion: "static", position: V(-10, 0) });
+  terrain.addShape(
+    new Heightfield({
+      heights: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      elementWidth: 2,
+    }),
+  );
+  world.bodies.add(terrain);
+  const ball = createRigid2D({
+    motion: "dynamic",
+    mass: 1,
+    position: V(-4, 2),
+  });
+  ball.addShape(new Circle({ radius: 0.5 }));
+  world.bodies.add(ball);
+  const box = createRigid2D({ motion: "dynamic", mass: 1, position: V(4, 2) });
+  box.addShape(new Box({ width: 1, height: 1 }));
+  world.bodies.add(box);
+
+  run(world, 3, [ball, box]);
+
+  // Resting on the surface (y = 0), not pushed into it
+  assertClose(ball.position.y, 0.5, 1);
+  assertClose(box.position.y, 0.5, 1);
+});
