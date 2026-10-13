@@ -19,6 +19,7 @@ export class MouseManager {
     this.view.onmousedown = (e) => this.onMouseDown(e);
     this.view.onmouseup = (e) => this.onMouseUp(e);
     this.view.onmousemove = (e) => this.onMouseMove(e);
+    this.view.onwheel = (e) => this.onWheel(e);
     this.view.oncontextmenu = (e) => {
       e.preventDefault();
       this.onClick(e);
@@ -95,6 +96,15 @@ export class MouseManager {
     }
   }
 
+  private onWheel(event: WheelEvent): void {
+    this.onInputActivity();
+    // Don't scroll or zoom the page
+    event.preventDefault();
+    if (event.deltaY !== 0) {
+      this.dispatch("wheel", { deltaY: event.deltaY });
+    }
+  }
+
   private onMouseUp(event: MouseEvent): void {
     this.onInputActivity();
     this.updatePosition(event);
@@ -117,6 +127,7 @@ export class MouseManager {
     this.view.onmousedown = null;
     this.view.onmouseup = null;
     this.view.onmousemove = null;
+    this.view.onwheel = null;
     this.view.oncontextmenu = null;
   }
 }

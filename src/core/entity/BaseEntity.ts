@@ -288,6 +288,7 @@ export abstract class BaseEntity implements Entity {
   onRightDown?(): void;
   onRightUp?(): void;
   onKeyDown?(data: GameEventMap["keyDown"]): void;
+  onWheel?(data: GameEventMap["wheel"]): void;
   onKeyUp?(data: GameEventMap["keyUp"]): void;
   onButtonDown?(data: GameEventMap["buttonDown"]): void;
   onButtonUp?(data: GameEventMap["buttonUp"]): void;

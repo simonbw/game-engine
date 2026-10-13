@@ -142,6 +142,51 @@ test("game initializes and runs without errors", async ({ page }) => {
   expect(stepped.frames).toBe(10);
   expect(stepped.ticks).toBe(10 * stepped.ticksPerFrame);
 
+  // --- Assertion: The mouse wheel reaches entities as `wheel` events ---
+  await page.evaluate(async () => {
+    const load = <T>(path: string): Promise<T> => import(path);
+    const { BaseEntity } = await load<
+      typeof import("../src/core/entity/BaseEntity")
+    >("/core/entity/BaseEntity.ts");
+    const { on } = await load<typeof import("../src/core/entity/handler")>(
+      "/core/entity/handler.ts",
+    );
+    class WheelWatcher extends BaseEntity {
+      id = "wheelWatcher";
+      deltas: number[] = [];
+      onWheel({ deltaY }: { deltaY: number }) {
+        this.deltas.push(deltaY);
+      }
+    }
+    // The decorator, applied by hand (this code isn't compiled with them)
+    on("wheel")(
+      WheelWatcher.prototype,
+      "onWheel",
+      Object.getOwnPropertyDescriptor(WheelWatcher.prototype, "onWheel")!,
+    );
+    window.DEBUG.game!.addEntity(new WheelWatcher());
+  });
+  await page.mouse.move(640, 360);
+  await page.mouse.wheel(0, 120);
+  await page.waitForFunction(
+    () =>
+      (window.DEBUG.game!.entities.getById("wheelWatcher") as any).deltas
+        .length > 0,
+  );
+
+  // --- Assertion: The first filter on the stage can be added and removed
+  // (Pixi leaves `filters` unset until there is one) ---
+  const filterCount = await page.evaluate(() => {
+    const renderer = window.DEBUG.game!.renderer;
+    // Added and removed before anything draws, so it needn't be a real one
+    const filter = {} as Parameters<typeof renderer.addStageFilter>[0];
+    renderer.addStageFilter(filter);
+    renderer.removeStageFilter(filter);
+    const filters = renderer.stage.filters;
+    return Array.isArray(filters) ? filters.length : filters ? 1 : 0;
+  });
+  expect(filterCount).toBe(0);
+
   // --- Assertion: No errors while running ---
   expect(issues).toHaveLength(0);
 });

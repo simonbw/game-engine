@@ -377,6 +377,10 @@ export class Game {
     if (entity.onResize) {
       entity.onResize({ size: this.renderer.getSize() });
     }
+    // So it knows which prompts to show from the start, not just on a change
+    if (entity.onInputDeviceChange && this._io) {
+      entity.onInputDeviceChange({ usingGamepad: this._io.usingGamepad });
+    }
 
     if (entity.children) {
       for (const child of entity.children) {
