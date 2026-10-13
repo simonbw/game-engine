@@ -14,6 +14,7 @@ import { LockConstraint } from "../../src/core/physics/constraints/LockConstrain
 import { RevoluteConstraint } from "../../src/core/physics/constraints/RevoluteConstraint";
 import { Box } from "../../src/core/physics/shapes/Box";
 import { Circle } from "../../src/core/physics/shapes/Circle";
+import { Heightfield } from "../../src/core/physics/shapes/Heightfield";
 import { Plane } from "../../src/core/physics/shapes/Plane";
 import { LinearSpring } from "../../src/core/physics/springs/LinearSpring";
 import { fromPolygon } from "../../src/core/physics/utils/fromPolygon";
@@ -252,4 +253,17 @@ test("a resting body falls asleep", () => {
   run(world, 4, [ball]);
 
   assert.equal(ball.isSleeping(), true);
+});
+
+test("a heightfield body's AABB covers the heightfield", () => {
+  const world = new World();
+  const terrain = createRigid2D({ motion: "static", position: V(-5, 0) });
+  terrain.addShape(
+    new Heightfield({ heights: [0, 1, 0, 2, 0, 0], elementWidth: 2 }),
+  );
+  world.bodies.add(terrain);
+  world.step(DT);
+
+  assert.ok(terrain.aabb.lowerBound.x <= -5 && terrain.aabb.upperBound.x >= 5);
+  assert.ok(terrain.aabb.lowerBound.y <= 0 && terrain.aabb.upperBound.y >= 2);
 });

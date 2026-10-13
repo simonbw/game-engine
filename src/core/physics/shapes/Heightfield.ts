@@ -3,6 +3,9 @@ import { AABB } from "../collision/AABB";
 import type { ShapeRaycastHit } from "../collision/raycast/RaycastHit";
 import { ShapeOptions, Shape } from "./Shape";
 
+/** Scratch space for computeAABB */
+const aabbCorners = [V(0, 0), V(0, 0), V(0, 0), V(0, 0)];
+
 export interface HeightfieldOptions extends ShapeOptions {
   heights?: number[];
   minValue?: number;
@@ -76,15 +79,14 @@ export class Heightfield extends Shape {
     this.area = area;
   }
 
-  computeAABB(position: V2d, angle: number): AABB {
-    const out = new AABB();
-    const points = [
-      V(0, this.maxValue),
-      V(this.elementWidth * this.heights.length, this.maxValue),
-      V(this.elementWidth * this.heights.length, this.minValue),
-      V(0, this.minValue),
-    ];
-    out.setFromPoints(points, position, angle, 0);
+  computeAABB(position: V2d, angle: number, out = new AABB()): AABB {
+    const width = this.elementWidth * this.heights.length;
+    const [a, b, c, d] = aabbCorners;
+    a.set(0, this.maxValue);
+    b.set(width, this.maxValue);
+    c.set(width, this.minValue);
+    d.set(0, this.minValue);
+    out.setFromPoints(aabbCorners, position, angle, 0);
     return out;
   }
 
