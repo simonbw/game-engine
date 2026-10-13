@@ -83,7 +83,7 @@ Common lifecycle events:
 
 ### Asset System
 
-The `bin/generate-manifest.ts` script watches the `resources/` folder and generates `resources/resources.ts`, a manifest with typed asset collections (`ImageName`, `SoundName`, `FontName`). Each asset is named after its file, camelCased without the extension, and names must be unique per type.
+The `bin/generate-manifest.ts` script watches the `resources/` folder and generates `resources/resources.ts`, a manifest with typed asset collections (`ImageName`, `SoundName`, `FontName`, and `MusicName` for files under `resources/audio/music/`, which are loaded on demand rather than preloaded). Each asset is named after its file, camelCased without the extension, and names must be unique per type.
 Use the helpers in `src/core/resources/resourceUtils.ts` like `imageName()` and `soundName()` to check names in code.
 
 ### Physics Integration

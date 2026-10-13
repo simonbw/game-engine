@@ -14,4 +14,8 @@ const fonts = {
 
 };
 export type FontName = keyof typeof fonts;
-export const RESOURCES = { images, sounds, fonts };
+const music = {
+
+};
+export type MusicName = keyof typeof music;
+export const RESOURCES = { images, sounds, fonts, music };

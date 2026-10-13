@@ -22,6 +22,9 @@ const EXTENSIONS = {
   images: ["bmp", "gif", "jpg", "png", "svg"],
   sounds: ["flac", "mp3", "ogg", "wav"],
   fonts: ["ttf", "otf", "woff", "woff2"],
+  // Sounds in MUSIC_FOLDER: not preloaded, but loaded when they're wanted
+  // (`core/resources/music.ts`)
+  music: ["flac", "mp3", "ogg", "wav"],
 } as const;
 type ResourceType = keyof typeof EXTENSIONS;
 const RESOURCE_TYPES = Object.keys(EXTENSIONS) as ResourceType[];
@@ -31,13 +34,24 @@ const TYPE_NAMES: Record<ResourceType, string> = {
   images: "ImageName",
   sounds: "SoundName",
   fonts: "FontName",
+  music: "MusicName",
 };
+
+/** Music is decoded to ~21 MB a minute, so it's only loaded when it's wanted */
+const MUSIC_FOLDER = path.join(RESOURCES_FOLDER, "audio", "music") + path.sep;
 
 /** Which kind of resource a file is, if any */
 function typeOf(fileName: string): ResourceType | undefined {
   const extension = path.extname(fileName).slice(1);
-  return RESOURCE_TYPES.find((type) =>
-    (EXTENSIONS[type] as readonly string[]).includes(extension),
+  if (path.resolve(fileName).startsWith(MUSIC_FOLDER)) {
+    return (EXTENSIONS.music as readonly string[]).includes(extension)
+      ? "music"
+      : undefined;
+  }
+  return RESOURCE_TYPES.find(
+    (type) =>
+      type !== "music" &&
+      (EXTENSIONS[type] as readonly string[]).includes(extension),
   );
 }
 

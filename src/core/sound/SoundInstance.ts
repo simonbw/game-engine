@@ -1,4 +1,4 @@
-import { SoundName } from "../../../resources/resources";
+import { MusicName, SoundName } from "../../../resources/resources";
 import { BaseEntity } from "../entity/BaseEntity";
 import { Entity } from "../entity/Entity";
 import { on } from "../entity/handler";
@@ -84,7 +84,8 @@ export class SoundInstance extends BaseEntity implements Entity {
   private _resolve!: () => void;
 
   constructor(
-    public readonly soundName: SoundName,
+    /** A sound, or a piece of music once it's loaded (`loadMusic`) */
+    public readonly soundName: SoundName | MusicName,
     private options: SoundOptions = {},
   ) {
     super();

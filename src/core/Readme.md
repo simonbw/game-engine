@@ -299,17 +299,34 @@ Key concepts:
 ## Sound
 
 Playing sounds in the game is done by creating instances of the `SoundInstance` entity and adding them to the game.
+`offset` and `duration` options play part of a sound, and `PositionalSound` pans and fades a sound by where it is.
+
+### Music
+
+Files under `resources/audio/music/` are their own resource type (`MusicName`) and aren't preloaded, since decoded audio takes about 21 MB a minute.
+`loadMusic(name)` (in `resources/music.ts`) fetches and decodes a piece when it's wanted, and `keepOnlyMusic(names)` drops the rest.
+Once loaded, music plays through `SoundInstance` like any sound.
+
+For music that has to line up, `sound/music/` schedules it on the audio clock: `musicClock.ts` finds the next bar line or phrase boundary from a start time, and `ClockedMusic.ts` starts layers together at an exact time (`ClockedLoop`, with per-layer gain ramps; `ClockedOneShot`) and stops them at a time with a short fade.
 
 ### Audio Effects
 
 It is possible to add audio effects to Sound Instances by overriding the `makeChain` method.
+
+## Animation
+
+`animation/` has animation that doesn't know what it animates:
+
+- `Track.ts`, `easing.ts`, `AnimationPlayer.ts` — keyframes of any value, and a player that plays one animation at a time, stretched to a duration, with timed events and blending from the last one.
+- `Gait.ts` — a two-footed walk cycle worked out from where a body is and which way it faces, with planted feet and a callback when each lands.
+- `Dangle.ts`, `DangleChain.ts` — a spring-driven swing for things hanging off a moving body (a ponytail, a lanyard), the same at any frame rate.
 
 ## Util
 
 There are a lot of random utilities I've written over the years. In particular, make sure you check out:
 
 - [MathUtil.ts](./util/MathUtil.ts) — Various math stuff like polar/cartesian conversions, interpolations, clamping, etc.
-- [Random.ts](./util/Random.ts) — Useful for all sorts of random number stuff. I particularly like `choose(...options)`
+- [Random.ts](./util/Random.ts) — Useful for all sorts of random number stuff. I particularly like `choose(...options)`. All randomness should go through it: `seedRandom(seed)` makes a run reproducible.
 - [ColorUtils.ts](./util/ColorUtils.ts) — For dealing with converting colors between different formats, blending/lerping colors, etc.
 - [Profiler.ts](./util/Profiler.ts) — `profiler.measure("label", () => ...)` and the `@profile` decorator. Press Backquote in a dev build to see the results in the stats overlay.
 - [Spline.ts](./util/Spline.ts), [Geometry.ts](./util/Geometry.ts), [Triangulate.ts](./util/Triangulate.ts) — Catmull-Rom splines, point-in-polygon, ear-clipping triangulation.
