@@ -1,4 +1,4 @@
-import { SoundName } from "../../../resources/resources";
+import { MusicName, SoundName } from "../../../resources/resources";
 import { Entity } from "../entity/Entity";
 import { Game } from "../Game";
 import { clamp, lerp } from "../util/MathUtil";
@@ -33,7 +33,7 @@ export class PositionalSound extends SoundInstance implements Entity {
   }
 
   constructor(
-    soundName: SoundName,
+    soundName: SoundName | MusicName,
     private position: V2d = V(0, 0),
     options: PositionalSoundOptions = {},
   ) {

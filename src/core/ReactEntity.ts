@@ -1,12 +1,10 @@
 import { render, VNode } from "preact";
-import { LayerName } from "../config/layers";
 import { BaseEntity } from "./entity/BaseEntity";
 import { Entity, GameEventMap } from "./entity/Entity";
 import { on } from "./entity/handler";
 
 /** Useful for rendering preact to the screen when you want it */
 export class ReactEntity extends BaseEntity implements Entity {
-  layer: LayerName = "hud";
   el!: HTMLDivElement;
 
   constructor(
@@ -31,6 +29,8 @@ export class ReactEntity extends BaseEntity implements Entity {
   onAdd() {
     this.el = document.createElement("div");
     document.body.append(this.el);
+    // Show something right away, rather than waiting for the first render
+    this.reactRender();
   }
 
   @on("destroy")

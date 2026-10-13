@@ -37,6 +37,18 @@ Each test should:
 3. Make multiple assertions with clear comments explaining what each checks
 4. Log useful diagnostic info (e.g., timing data) for debugging
 
+## Unit Tests
+
+Code that doesn't need a browser (physics, math, tooling) is tested in Node with `node:test` and `node:assert/strict`, in `tests/<area>/*.test.ts`. They run in about a second. The fat-test advice above is for the browser tests; unit tests can be as small as they like.
+
+## Browser Tests
+
+`tests/*.spec.ts` run in headless Chrome against the dev server, via Playwright. Collect page errors and `console.error`s and fail on any.
+
+The dev server serves source modules by path, so a test can `import("/core/...")` inside `page.evaluate` and get the same module instances the running game uses. `tests/e2e.spec.ts` does this to set up physics bodies.
+
 ## Running Tests
 
-- `npm test` - Run E2E tests
+- `npm test` - Run the unit tests, then the browser tests
+- `npm run test:unit` / `npm run test:e2e` - Run one kind
+- The browser tests start their own dev server on port 3466. Set `TEST_PORT` to use another (for running tests in several checkouts at once), and `TEST_REUSE_SERVER=1` to use a dev server already running on that port.

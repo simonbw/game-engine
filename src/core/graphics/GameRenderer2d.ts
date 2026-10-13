@@ -70,6 +70,10 @@ export class GameRenderer2d implements ViewportProvider {
         resizeTo: window,
         autoDensity: true,
         antialias: true,
+        // We call render() ourselves. With Pixi's ticker running, it would also
+        // draw the stage on every animation frame: twice a frame with vsync,
+        // and many times a frame without
+        autoStart: false,
         ...pixiOptions,
       })
       .then(() => {
@@ -77,31 +81,48 @@ export class GameRenderer2d implements ViewportProvider {
       });
   }
 
-  /** TODO: Document request fullscreen */
+  /**
+   * Goes fullscreen on the next click anywhere on the page. The whole document
+   * goes fullscreen rather than just the canvas so that HTML overlays (see
+   * ReactEntity) stay visible.
+   */
   requestFullscreen() {
     const makeFullScreen = () => {
-      this.canvas.requestFullscreen();
-      this.canvas.removeEventListener("click", makeFullScreen);
+      document.documentElement.requestFullscreen().catch(() => {
+        // The browser can refuse (e.g. iframes without the permission); that's fine
+      });
     };
-    this.canvas.addEventListener("click", makeFullScreen);
+    document.addEventListener("click", makeFullScreen, { once: true });
   }
 
   /**
    * Gets the effective height of the renderer viewport in logical pixels.
    */
   getHeight(): number {
-    return this.app.renderer.height / this.app.renderer.resolution;
+    return this.app.renderer.height;
   }
 
   /**
    * Gets the effective width of the renderer viewport in logical pixels.
    */
   getWidth(): number {
-    return this.app.renderer.width / this.app.renderer.resolution;
+    return this.app.renderer.width;
   }
 
   getSize(): V2d {
     return V(this.getWidth(), this.getHeight());
+  }
+
+  /** Whether the canvas is antialiased (fixed when it's made, by `init`'s options) */
+  get antialias(): boolean {
+    const gl = (this.app.renderer as { gl?: WebGL2RenderingContext }).gl;
+    return gl?.getContextAttributes()?.antialias ?? false;
+  }
+
+  /** Change the number of device pixels rendered per logical pixel. */
+  setResolution(resolution: number) {
+    this.app.renderer.resolution = resolution;
+    this.handleResize();
   }
 
   handleResize = () => {
@@ -154,26 +175,25 @@ export class GameRenderer2d implements ViewportProvider {
    */
   addLayerFilter(filter: Pixi.Filter, layerName: LayerName): void {
     const container = this.layerInfos[layerName].container;
-    if (!(container.filters instanceof Array)) {
-      throw new Error("layer.filters is not an array");
-    }
-    container.filters;
-    container.filters = [...container.filters!, filter];
+    container.filters = [...getFilters(container), filter];
   }
 
   addStageFilter(filter: Pixi.Filter): void {
-    if (!(this.stage.filters instanceof Array)) {
-      throw new Error("stage.filters is not an array");
-    }
-    this.stage.filters = [...(this.stage.filters ?? []), filter];
+    this.stage.filters = [...getFilters(this.stage), filter];
   }
 
   removeStageFilter(filterToRemove: Pixi.Filter): void {
-    if (!(this.stage.filters instanceof Array)) {
-      throw new Error("stage.filters is not an array");
-    }
-    this.stage.filters = (this.stage.filters ?? []).filter(
+    this.stage.filters = getFilters(this.stage).filter(
       (filter) => filter != filterToRemove,
     );
   }
+}
+
+/** Pixi lets filters be a single filter, a list, or nothing. This always gives a list. */
+function getFilters(container: Pixi.Container): readonly Pixi.Filter[] {
+  const filters = container.filters;
+  if (!filters) {
+    return [];
+  }
+  return filters instanceof Array ? filters : [filters];
 }

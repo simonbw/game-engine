@@ -2,19 +2,11 @@
 
 Utility scripts.
 
-## `generate-asset-types.ts`
+## `generate-manifest.ts`
 
-A script to generate typescript declaration (.d.ts) files for assets like images, sounds, and fonts so that they can be imported with type safety.
+Generates `resources/resources.ts`, a manifest of every image, sound, font and piece of music (anything under `resources/audio/music/`) in `resources/`. Each asset is named after its file (camelCased, without the extension; see `src/core/resources/resourceName.ts`), which gives typed names like `ImageName` and `SoundName`, and the preloader loads everything in it. Names have to be unique per type; the generator fails if two files would share one.
 
-It also generates a `resources.ts` manifest file that these resources can be easily iterated through.
-
-This script is run with `npm run generate-manifest` or `npm run watch-manifest`.
-
-## `dev-server.ts`
-
-Starts Parcel on `PORT + 1` (default `1235`) and proxies it on `PORT` (default `1234`), adding the COOP/COEP headers needed for cross-origin isolation (high-resolution `performance.now()`). Serves `src/index.html` and the entity studio.
-
-Run with `npm run dev-server` (or `npm start`, which also watches the asset manifest).
+Run with `npm run generate-manifest`, or `npm run watch-manifest` to regenerate as files are added and removed (`npm start` does this).
 
 ## `profile-game.ts`
 
@@ -24,4 +16,4 @@ Run with `npm run profile-game -- [--duration <sec>] [--warmup <sec>] [--json] [
 
 ## `sync-agents-symlinks.sh`
 
-Creates an `AGENTS.md -> CLAUDE.md` symlink next to every `CLAUDE.md` in the repo. Requires `rg` (ripgrep).
+Creates an `AGENTS.md -> CLAUDE.md` symlink next to every `CLAUDE.md` in the repo.

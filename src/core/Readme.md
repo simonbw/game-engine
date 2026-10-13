@@ -12,7 +12,7 @@ Some things that `Game` does:
 
 - Initializes the physics, rendering, and input handling systems
 - Keeps track of entities
-- Runs the game loop
+- Runs the game loop: one frame (a `tick` and a `render`) per display refresh, with `dt` the ideal frame time (1 / refresh rate) rather than however long the frame took (see `FramePacing.ts`). The refresh rate is measured from animation frame timestamps, `frameRateLimit` caps it, frames below 60 fps run more than one tick, and a dropped frame is caught up (at most 3 frames, then the game slows down). `manualFrames` and `stepFrames(n)` run frames by hand, for recording video or stepping from the console.
 - Runs the event system, dispatching events and calling the appropriate handlers on entities
 
 ## Entities
@@ -58,7 +58,8 @@ Useful for initializing stuff that you need access to the `game` for.
 
 #### `@on("tick")`
 
-If you want an entity to do something every frame, put that logic in the `onTick()` method.
+If you want an entity to do something every physics step, put that logic in the `onTick()` method.
+The tick rate follows the display (60, 120, 144 per second...), so anything that changes per tick has to scale with `dt`: a velocity times `dt`, or a smoothing factor as `Math.pow(kept, dt * 60)`, never a fixed amount per tick.
 
 ```TypeScript
   @on("tick")
@@ -74,6 +75,8 @@ If you want an entity to do something every frame, put that logic in the `onTick
 
 Called on every frame right before the screen is redrawn.
 Useful for logic like syncing a sprite's position to its body.
+Keep it to looks: anything that affects the game belongs in `onTick`.
+Off-screen entities can skip their drawing work with `game.camera.isVisible(x, y, radius)`.
 
 ```TypeScript
   @on("render")
@@ -98,12 +101,16 @@ _Note: `imageName` is a helper function that limits the string type to only name
 
 Ticks run in phases defined in `src/config/tickLayers.ts` (`input`, `main`, `effects`, `camera`).
 Set `tickLayer` on an entity to pick a phase; everything on an earlier layer ticks before anything on a later one.
+An entity without a `tickLayer` is in its parent's, so children tick with their parents.
 The camera ticks last so it always follows final positions.
+`render` handlers run in the same layers, so the profiler reports ticking and rendering per layer.
 
 ### Less important events
 
 `@on("afterAdded")` — Called when added to the game, _after_ the body, sprite, handlers, and everything else is dealt with.
 Most of the time you probably want to use `onAdd`, but there are some times when this comes in handy.
+
+`@on("beforeTick")` — Called at the start of every tick, before any `onTick` handlers.
 
 `@on("pause")` — Called when the game is paused
 
@@ -292,17 +299,34 @@ Key concepts:
 ## Sound
 
 Playing sounds in the game is done by creating instances of the `SoundInstance` entity and adding them to the game.
+`offset` and `duration` options play part of a sound, and `PositionalSound` pans and fades a sound by where it is.
+
+### Music
+
+Files under `resources/audio/music/` are their own resource type (`MusicName`) and aren't preloaded, since decoded audio takes about 21 MB a minute.
+`loadMusic(name)` (in `resources/music.ts`) fetches and decodes a piece when it's wanted, and `keepOnlyMusic(names)` drops the rest.
+Once loaded, music plays through `SoundInstance` like any sound.
+
+For music that has to line up, `sound/music/` schedules it on the audio clock: `musicClock.ts` finds the next bar line or phrase boundary from a start time, and `ClockedMusic.ts` starts layers together at an exact time (`ClockedLoop`, with per-layer gain ramps; `ClockedOneShot`) and stops them at a time with a short fade.
 
 ### Audio Effects
 
 It is possible to add audio effects to Sound Instances by overriding the `makeChain` method.
+
+## Animation
+
+`animation/` has animation that doesn't know what it animates:
+
+- `Track.ts`, `easing.ts`, `AnimationPlayer.ts` — keyframes of any value, and a player that plays one animation at a time, stretched to a duration, with timed events and blending from the last one.
+- `Gait.ts` — a two-footed walk cycle worked out from where a body is and which way it faces, with planted feet and a callback when each lands.
+- `Dangle.ts`, `DangleChain.ts` — a spring-driven swing for things hanging off a moving body (a ponytail, a lanyard), the same at any frame rate.
 
 ## Util
 
 There are a lot of random utilities I've written over the years. In particular, make sure you check out:
 
 - [MathUtil.ts](./util/MathUtil.ts) — Various math stuff like polar/cartesian conversions, interpolations, clamping, etc.
-- [Random.ts](./util/Random.ts) — Useful for all sorts of random number stuff. I particularly like `choose(...options)`
+- [Random.ts](./util/Random.ts) — Useful for all sorts of random number stuff. I particularly like `choose(...options)`. All randomness should go through it: `seedRandom(seed)` makes a run reproducible.
 - [ColorUtils.ts](./util/ColorUtils.ts) — For dealing with converting colors between different formats, blending/lerping colors, etc.
 - [Profiler.ts](./util/Profiler.ts) — `profiler.measure("label", () => ...)` and the `@profile` decorator. Press Backquote in a dev build to see the results in the stats overlay.
 - [Spline.ts](./util/Spline.ts), [Geometry.ts](./util/Geometry.ts), [Triangulate.ts](./util/Triangulate.ts) — Catmull-Rom splines, point-in-polygon, ear-clipping triangulation.
@@ -311,7 +335,7 @@ There are a lot of random utilities I've written over the years. In particular, 
 ### Settings and tuning
 
 - `state/PersistedState.ts` — `createPersistedState({ key, default })` gives you a get/set/subscribe setting backed by localStorage. Call `setPersistedStateNamespace("my-game:setting:")` once at startup.
-- `tuning/` — Put `//#tunable { min: 0, max: 10 }` on the line above a `let` and a dev-only Parcel transform registers it with the `TuningPanel` (toggle with Backslash) so you can drag it live.
+- `tuning/` — Put `//#tunable { min: 0, max: 10 }` on the line above a `let` and a dev-only Vite plugin registers it with the `TuningPanel` (toggle with Backslash) so you can drag it live.
 
 ## Vector
 

@@ -1,4 +1,4 @@
-import * as decomp from "poly-decomp";
+import * as decomp from "poly-decomp-es";
 import { V, V2d } from "../../Vector";
 import type { Body } from "../body/Body";
 import { Convex } from "../shapes/Convex";

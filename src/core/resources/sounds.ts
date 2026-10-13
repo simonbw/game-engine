@@ -1,20 +1,26 @@
-import { SoundName } from "../../../resources/resources";
+import { MusicName, SoundName } from "../../../resources/resources";
+import { getMusicBuffer } from "./music";
 
 // Stores all loaded buffers
 const buffers: Map<SoundName, AudioBuffer> = new Map();
 
-// Whether or not a buffer has been loaded for a url
-export function hasSoundBuffer(name: SoundName): boolean {
-  return buffers.has(name);
+// Whether or not a buffer has been loaded for a sound (or a piece of music,
+// once `loadMusic` has it: music isn't preloaded)
+export function hasSoundBuffer(name: SoundName | MusicName): boolean {
+  return getSoundOrMusic(name) !== undefined;
 }
 
-// Get the buffer loaded for a url or throw if none has been loaded
-export function getSoundBuffer(name: SoundName): AudioBuffer {
-  const buffer = buffers.get(name);
+// Get the buffer loaded for a sound (or loaded piece of music) or throw if none has been loaded
+export function getSoundBuffer(name: SoundName | MusicName): AudioBuffer {
+  const buffer = getSoundOrMusic(name);
   if (!buffer) {
     throw new Error(`Audio Buffer not loaded: ${name}`);
   }
   return buffer;
+}
+
+function getSoundOrMusic(name: SoundName | MusicName): AudioBuffer | undefined {
+  return buffers.get(name as SoundName) ?? getMusicBuffer(name as MusicName);
 }
 
 export function getSoundDuration(name: SoundName): number {

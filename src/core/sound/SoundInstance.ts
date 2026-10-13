@@ -1,4 +1,4 @@
-import { SoundName } from "../../../resources/resources";
+import { MusicName, SoundName } from "../../../resources/resources";
 import { BaseEntity } from "../entity/BaseEntity";
 import { Entity } from "../entity/Entity";
 import { on } from "../entity/handler";
@@ -13,6 +13,10 @@ export interface SoundOptions {
   speed?: number;
   continuous?: boolean;
   randomStart?: boolean;
+  /** Seconds into the sound to start playing from */
+  offset?: number;
+  /** Seconds of the sound to play (from `offset`), else to its end */
+  duration?: number;
   reactToSlowMo?: boolean;
   persistenceLevel?: number;
   pauseable?: boolean;
@@ -80,7 +84,8 @@ export class SoundInstance extends BaseEntity implements Entity {
   private _resolve!: () => void;
 
   constructor(
-    public readonly soundName: SoundName,
+    /** A sound, or a piece of music once it's loaded (`loadMusic`) */
+    public readonly soundName: SoundName | MusicName,
     private options: SoundOptions = {},
   ) {
     super();
@@ -108,18 +113,36 @@ export class SoundInstance extends BaseEntity implements Entity {
       chain.connect(game.masterGain);
     }
 
+    this.lastTick = game.audio.currentTime;
+
+    const offset = this.options.randomStart
+      ? rUniform(0, this.sourceNode.buffer!.duration * 0.99)
+      : (this.options.offset ?? 0);
+    this.startSource(offset);
+  }
+
+  /** Where in the buffer this sound stops (unless it's continuous) */
+  private get endTime(): number {
+    const { duration, offset = 0 } = this.options;
+    const bufferDuration = this.sourceNode.buffer!.duration;
+    return duration !== undefined
+      ? Math.min(offset + duration, bufferDuration)
+      : bufferDuration;
+  }
+
+  /** Starts the source node playing from `offset` seconds into the buffer */
+  private startSource(offset: number) {
+    this.elapsed = offset;
     this.sourceNode.onended = () => {
       if (!this.paused) {
         this.destroy();
       }
     };
-
-    this.lastTick = game.audio.currentTime;
-
-    const startTime = this.options.randomStart
-      ? rUniform(0, this.sourceNode.buffer!.duration * 0.99)
-      : undefined;
-    this.sourceNode.start(startTime);
+    if (this.continuous) {
+      this.sourceNode.start(0, offset);
+    } else {
+      this.sourceNode.start(0, offset, Math.max(0, this.endTime - offset));
+    }
   }
 
   /** Creates the  */
@@ -162,7 +185,7 @@ export class SoundInstance extends BaseEntity implements Entity {
   }
 
   updatePlaybackRate() {
-    if (this.sourceNode && this.game) {
+    if (this.sourceNode && this.isAdded) {
       if (this.reactToSlowMo) {
         this.sourceNode.playbackRate.value = this._speed * this.game.slowMo;
       } else {
@@ -188,7 +211,7 @@ export class SoundInstance extends BaseEntity implements Entity {
     if (this.paused) {
       this.paused = false;
       const bufferDuration = this.sourceNode.buffer!.duration;
-      if (!this.continuous && this.elapsed >= bufferDuration) {
+      if (!this.continuous && this.elapsed >= this.endTime) {
         this.destroy();
       } else {
         this.restartSound(this.elapsed % bufferDuration);
@@ -197,16 +220,16 @@ export class SoundInstance extends BaseEntity implements Entity {
   }
 
   restartSound(startTime: number) {
+    this.sourceNode.onended = null;
+    this.sourceNode.stop();
     this.sourceNode.disconnect();
     const newNode = this.game.audio.createBufferSource();
     newNode.buffer = this.sourceNode.buffer;
     newNode.loop = this.sourceNode.loop;
+    newNode.playbackRate.value = this.sourceNode.playbackRate.value;
     this.sourceNode = newNode;
     this.sourceNode.connect(this.panNode);
-    this.sourceNode.start(
-      this.game.audio.currentTime,
-      clamp(startTime, 0, this.sourceNode.buffer!.duration),
-    );
+    this.startSource(clamp(startTime, 0, this.sourceNode.buffer!.duration));
   }
 
   jumpToRandom() {

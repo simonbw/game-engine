@@ -2,8 +2,49 @@ import { mod } from "./MathUtil";
 
 /** Utility functions for doing things based on random numbers. */
 
-// just for shorthand
-const r = Math.random;
+// The source of all randomness. Defaults to Math.random, but can be replaced
+// with a seeded generator to make things reproducible (e.g. for tests).
+let r: () => number = Math.random;
+
+let baseSeed: number | undefined = undefined;
+
+/**
+ * Make all the functions in this file deterministic. Seed should be an integer.
+ */
+export function seedRandom(seed: number): void {
+  baseSeed = seed;
+  reseed(seed);
+}
+
+/**
+ * If a seed has been provided, restart the random sequence from a seed derived
+ * from the original seed and `offset`. Useful for making something reproducible
+ * even when an unpredictable amount of randomness was consumed before it.
+ * Does nothing if seedRandom() was never called.
+ */
+export function reseedIfSeeded(offset: number): void {
+  if (baseSeed != undefined) {
+    reseed(baseSeed + offset);
+  }
+}
+
+function reseed(seed: number): void {
+  r = makeRandom(seed);
+}
+
+/**
+ * A generator of its own (mulberry32: small and fast), separate from the
+ * seeded one, for randomness that's only looks and mustn't disturb it.
+ */
+export function makeRandom(seed: number): () => number {
+  let a = seed | 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 /** Return a random number between `min` and `max`. */
 export function rUniform(min?: number, max?: number): number {
@@ -128,6 +169,18 @@ export function chooseWeighted<T>(
 
   // Fallback for floating point edge cases
   return items[items.length - 1];
+}
+
+/** Removes and returns one element of `pool`, each as likely as its `weight` */
+export function takeWeighted<T>(pool: T[], weight: (t: T) => number): T {
+  const total = pool.reduce((sum, t) => sum + weight(t), 0);
+  let roll = rUniform(0, total);
+  let index = 0;
+  while (index < pool.length - 1 && roll >= weight(pool[index])) {
+    roll -= weight(pool[index]);
+    index++;
+  }
+  return pool.splice(index, 1)[0];
 }
 
 /**

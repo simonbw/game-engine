@@ -77,7 +77,6 @@ If the user is investigating a specific subsystem and the existing labels aren't
 
 ## Gotchas
 
-- First-run startup can be slow while Parcel does an initial cold build — bump `--server-start-timeout` if the spawn times out.
 - Rendering uses WebGL through Pixi.js; the harness passes `--ignore-gpu-blocklist` (and `--use-angle=metal` on macOS) so headless Chrome uses the real GPU rather than SwiftShader.
 - The profiler resets right after warmup, so `--warmup 0` will include load spikes in the sample.
 - Headless Chrome on Apple Silicon can be scheduled onto efficiency cores, so absolute CPU numbers may be pessimistic compared to `--headed`. Relative before/after comparisons remain valid as long as both sides use the same mode.

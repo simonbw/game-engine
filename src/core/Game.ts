@@ -1,8 +1,10 @@
 import { DEFAULT_LAYER, LAYERS } from "../config/layers";
-import { TICK_LAYERS, TickLayerName } from "../config/tickLayers";
+import { TICK_LAYERS } from "../config/tickLayers";
 import { ContactList } from "./ContactList";
 import { EntityList } from "./EntityList";
+import { FramePacer, RefreshRateEstimator } from "./FramePacing";
 import { V } from "./Vector";
+import { BaseGameEvents } from "./entity/BaseGameEvents";
 import { Entity, GameEventMap } from "./entity/Entity";
 import { eventHandlerName } from "./entity/EventHandler";
 import { IoEvents } from "./entity/IoEvents";
@@ -19,14 +21,20 @@ import {
   getMasterVolume,
   onMasterVolumeChange,
 } from "./sound/MasterVolumeState";
-import { lerp } from "./util/MathUtil";
+import { gpuProfiler } from "./util/GpuProfiler";
 import { profile, profiler } from "./util/Profiler";
 
 interface GameOptions {
   audio?: AudioContext;
-  ticksPerSecond?: number;
   world?: World;
 }
+
+/**
+ * Ticks happen at least this often: below it (a frame rate limit of 30, or a
+ * display throttled to 30 by power saving), each frame runs more than one
+ * tick, so the physics steps stay small.
+ */
+const MIN_TICK_RATE = 60;
 
 /** Top Level control structure */
 export class Game {
@@ -61,18 +69,55 @@ export class Game {
   framenumber: number = 0;
   /** Readonly. Number of ticks that have gone by */
   ticknumber: number = 0;
-  /** The timestamp when the last frame started */
+  /** The timestamp (ms) of the last animation frame callback */
   lastFrameTime: number = window.performance.now();
-  /** Number of ticks that happen per frame at regular speed */
-  readonly ticksPerSecond: number;
-  /** Number of seconds to simulate per tick */
-  readonly tickDuration: number;
+
   /**
-   * Maximum ticks simulated in a single frame. Prevents a "spiral of death"
-   * after a long frame (e.g. coming back from another tab): instead of trying
-   * to catch up on seconds of simulation, the game just runs a little slow.
+   * The display's refresh rate (Hz), as measured, unless `refreshRateOverride`
+   * is set. See `RefreshRateEstimator`.
    */
-  readonly maxTicksPerFrame = 5;
+  private readonly refreshRateEstimator = new RefreshRateEstimator(60);
+  private readonly framePacer = new FramePacer();
+  /**
+   * Pretends the display runs at this rate, and that every animation frame
+   * callback is one of its refreshes, however much time really went by: for
+   * benchmarks, which run without vsync. Every callback then runs a frame
+   * (unless `frameRateLimit` is lower), so the browser calls back as soon as
+   * the last frame is done, and the intervals between frames are what they
+   * cost, CPU and GPU. (Skipping callbacks without drawing anything makes
+   * headless Chrome call back irregularly, about every 15 ms.)
+   */
+  refreshRateOverride: number | undefined;
+  /**
+   * While set, animation frames don't run the game: only `stepFrames` does,
+   * one frame of `targetFrameRate` at a time however long it really takes.
+   * For recording video a frame at a time, or stepping through frames from
+   * the console.
+   */
+  manualFrames = false;
+  /** The player's frame rate limit, for fast displays on slow machines. Undefined is the display's rate */
+  frameRateLimit: number | undefined;
+
+  /** The display's refresh rate in Hz */
+  get refreshRate(): number {
+    return this.refreshRateOverride ?? this.refreshRateEstimator.rate;
+  }
+  /** Frames per second the game runs at: the display's rate, unless it's limited */
+  get targetFrameRate(): number {
+    return Math.min(this.refreshRate, this.frameRateLimit ?? Infinity);
+  }
+  /** Ticks per rendered frame: 1, unless the frame rate is below `MIN_TICK_RATE` */
+  get ticksPerFrame(): number {
+    return Math.max(1, Math.ceil(MIN_TICK_RATE / this.targetFrameRate));
+  }
+  /** Ticks per second at regular speed */
+  get ticksPerSecond(): number {
+    return this.targetFrameRate * this.ticksPerFrame;
+  }
+  /** Seconds simulated per tick at regular speed */
+  get tickDuration(): number {
+    return 1 / this.ticksPerSecond;
+  }
 
   /** ID of the current animation frame request, used for cancellation */
   private animationFrameId: number = 0;
@@ -85,16 +130,16 @@ export class Game {
   elapsedTime: number = 0;
   /** Total amount of game time that has elapsed while not paused */
   elapsedUnpausedTime: number = 0;
-  /** Keep track of how long each frame is taking on average */
-  averageFrameDuration = 1 / 60;
+  /**
+   * Seconds the world has been simulated: the ticks' `dt`s while not paused,
+   * so slow motion slows it down. For bringing looks up to date in `onRender`
+   * by how much happened since the last frame.
+   */
+  simulatedTime: number = 0;
 
   /** The camera that controls the viewport */
   get camera() {
     return this.renderer.camera;
-  }
-
-  get averageDt() {
-    return this.slowMo / (this.averageFrameDuration * this.ticksPerSecond);
   }
 
   private _slowMo: number = 1.0;
@@ -114,7 +159,7 @@ export class Game {
    * Create a new Game.
    * NOTE: You must call .init() before actually using the game.
    */
-  constructor({ audio, ticksPerSecond = 120, world }: GameOptions = {}) {
+  constructor({ audio, world }: GameOptions = {}) {
     this.entities = new EntityList();
     this.entitiesToRemove = new Set();
 
@@ -124,8 +169,6 @@ export class Game {
       this.onResize.bind(this),
     );
 
-    this.ticksPerSecond = ticksPerSecond;
-    this.tickDuration = 1.0 / this.ticksPerSecond;
     this.world = world ?? new World();
     this.world.on("beginContact", this.beginContact, null);
     this.world.on("endContact", this.endContact, null);
@@ -160,6 +203,10 @@ export class Game {
     profiler.registerScope("Game.nextFrame");
 
     await this.renderer.init(rendererOptions);
+    // Undefined unless Pixi chose WebGL
+    gpuProfiler.init(
+      (this.renderer.app.renderer as { gl?: WebGL2RenderingContext }).gl,
+    );
     // IO events don't respect pause state
     const dispatchIo = <E extends keyof IoEvents>(
       event: E,
@@ -182,14 +229,12 @@ export class Game {
     this.looping = true;
     this.lastFrameTime = window.performance.now();
     this.lastAudioTime = this.audio.currentTime;
-    this.animationFrameId = window.requestAnimationFrame((t) =>
-      this.nextFrame(t),
-    );
+    this.animationFrameId = window.requestAnimationFrame((t) => this.loop(t));
   }
 
   /**
    * Stop the animation-frame loop. The game will not advance until startLoop()
-   * is called or nextFrame() is called manually (e.g. from the DevTools console).
+   * is called or stepFrames() is called (e.g. from the DevTools console).
    */
   stopLoop() {
     this.looping = false;
@@ -332,6 +377,10 @@ export class Game {
     if (entity.onResize) {
       entity.onResize({ size: this.renderer.getSize() });
     }
+    // So it knows which prompts to show from the start, not just on a change
+    if (entity.onInputDeviceChange && this._io) {
+      entity.onInputDeviceChange({ usingGamepad: this._io.usingGamepad });
+    }
 
     if (entity.children) {
       for (const child of entity.children) {
@@ -396,36 +445,68 @@ export class Game {
     }
   }
 
-  private timeToSimulate = 0.0;
   /** Audio time at the end of the last frame's tick loop */
   private lastAudioTime: number = 0;
 
   /**
-   * Run one frame of the game. Normally called by the animation-frame loop,
-   * but can also be invoked manually (e.g. from the DevTools console) after
-   * stopLoop() to step the simulation forward one frame at a time.
+   * Every animation frame callback: usually runs one frame (a tick and a
+   * render), sometimes none (when the frame rate is limited below the
+   * display's) or a few (to catch up after a dropped frame). See `FramePacer`.
+   */
+  private loop(time: number): void {
+    if (this.destroyed || !this.looping) return;
+    // With the rate overridden, every callback is one refresh of that display,
+    // however long it really took (see `refreshRateOverride`)
+    const elapsed = this.refreshRateOverride
+      ? 1 / this.refreshRateOverride
+      : (time - this.lastFrameTime) / 1000;
+    this.lastFrameTime = time;
+    if (!this.manualFrames) {
+      this.refreshRateEstimator.addFrame(time / 1000);
+      const frames = this.framePacer.framesFor(
+        elapsed,
+        this.refreshRateOverride
+          ? 1 / this.refreshRateOverride
+          : this.refreshRateEstimator.interval,
+        this.refreshRate,
+        this.targetFrameRate,
+      );
+      if (frames > 0) {
+        this.nextFrame(frames);
+      }
+    }
+
+    // Request the next frame at the END so a frame that throws stops the
+    // loop rather than repeating every frame
+    if (this.looping && !this.destroyed) {
+      this.animationFrameId = window.requestAnimationFrame((t) => this.loop(t));
+    }
+  }
+
+  /**
+   * Runs `count` frames (each a tick and a render) right now, each one frame
+   * of `targetFrameRate`. With `manualFrames` set (or after `stopLoop()`),
+   * this is the only thing that moves the game on.
+   */
+  stepFrames(count: number = 1): void {
+    for (let i = 0; i < count; i++) {
+      this.nextFrame(1);
+    }
+  }
+
+  /**
+   * Runs `frames` frames' worth of ticks at the target frame rate, each
+   * stepping the ideal tick time rather than the time that actually went by,
+   * then renders once.
    */
   @profile
-  nextFrame(time: number = window.performance.now()): void {
+  private nextFrame(frames: number): void {
     if (this.destroyed) return;
 
     this.framenumber += 1;
+    gpuProfiler.poll();
 
-    const lastFrameDuration = (time - this.lastFrameTime) / 1000;
-    this.lastFrameTime = time;
-
-    // Keep a rolling average
-    if (0 < lastFrameDuration && lastFrameDuration < 0.3) {
-      // Ignore weird durations because they're probably flukes from the user
-      // changing to a different tab/window or loading a new level or something
-      this.averageFrameDuration = lerp(
-        this.averageFrameDuration,
-        lastFrameDuration,
-        0.05,
-      );
-    }
-
-    const renderDt = 1.0 / this.getScreenFps();
+    const renderDt = frames / this.targetFrameRate;
     this.elapsedTime += renderDt;
     if (!this.paused) {
       this.elapsedUnpausedTime += renderDt;
@@ -433,31 +514,23 @@ export class Game {
 
     this.slowTick(renderDt * this.slowMo);
 
-    if (!this.paused) {
-      this.timeToSimulate = Math.min(
-        this.timeToSimulate + renderDt * this.slowMo,
-        this.tickDuration * this.maxTicksPerFrame,
-      );
-    }
+    const tickDt = this.tickDuration * this.slowMo;
+    const ticks = frames * this.ticksPerFrame;
 
     // Distribute real audio time evenly across this frame's ticks
     const audioNow = this.audio.currentTime;
-    const tickCount = Math.floor(this.timeToSimulate / this.tickDuration);
-    const audioTimeStep =
-      tickCount > 0 ? (audioNow - this.lastAudioTime) / tickCount : 0;
+    const audioTimeStep = (audioNow - this.lastAudioTime) / ticks;
     let tickAudioTime = this.lastAudioTime;
 
-    while (this.timeToSimulate >= this.tickDuration) {
-      this.timeToSimulate -= this.tickDuration;
+    for (let i = 0; i < ticks; i++) {
       tickAudioTime += audioTimeStep;
-
-      this.tick(this.tickDuration, tickAudioTime);
+      this.tick(tickDt, tickAudioTime);
 
       if (!this.paused) {
-        const stepDt = this.tickDuration;
-        profiler.measure("Game.physics", () => this.world.step(stepDt));
+        this.simulatedTime += tickDt;
+        profiler.measure("Game.physics", () => this.world.step(tickDt));
         profiler.measure("Game.afterPhysicsStep", () => {
-          this.dispatch("afterPhysicsStep", stepDt);
+          this.dispatch("afterPhysicsStep", tickDt);
           this.cleanupEntities();
         });
 
@@ -470,23 +543,6 @@ export class Game {
     this.afterPhysics();
 
     this.render(renderDt);
-
-    // Request the next frame at the END so a slow frame can't start a second,
-    // concurrent loop.
-    if (this.looping) {
-      this.animationFrameId = window.requestAnimationFrame((t) =>
-        this.nextFrame(t),
-      );
-    }
-  }
-
-  /**
-   * Calculates and returns the current screen frames per second based on average frame duration.
-   * @returns The current FPS rounded to the nearest integer
-   */
-  getScreenFps(): number {
-    const duration = this.averageFrameDuration;
-    return Math.round(1.0 / duration);
   }
 
   /** Actually remove all the entities slated for removal from the game. */
@@ -540,49 +596,87 @@ export class Game {
   @profile
   private tick(dt: number, audioTime: number): void {
     this.ticknumber += 1;
+    this.callHandlers("beforeTick", dt);
 
     const tickData: GameEventMap["tick"] = { dt, audioTime };
-
-    // Dispatch tick events layer by layer
-    for (const layerName of TICK_LAYERS) {
-      profiler.measure(`tick.${layerName}`, () =>
-        this.dispatchTickForLayer(layerName, tickData),
+    for (const layer of TICK_LAYERS) {
+      profiler.measure(`tick.${layer}`, () =>
+        this.callHandlers(
+          "tick",
+          tickData,
+          this.entities.getTickersOnLayer(layer),
+        ),
       );
-    }
-  }
-
-  /** Dispatch tick event to entities on a specific layer */
-  private dispatchTickForLayer(
-    layerName: TickLayerName,
-    tickData: GameEventMap["tick"],
-  ): void {
-    const effectivelyPaused = this.paused;
-    for (const entity of this.entities.getTickersOnLayer(layerName)) {
-      if (entity.isAdded && !(effectivelyPaused && entity.pausable)) {
-        entity.onTick?.(tickData);
-      }
     }
   }
 
   /** Called before normal ticks */
   @profile
   private slowTick(dt: number) {
-    this.dispatch("slowTick", dt);
+    this.callHandlers("slowTick", dt);
   }
 
   /** Called after physics. */
   private afterPhysics() {
     this.cleanupEntities();
-    this.dispatch("afterPhysics", undefined);
+    this.callHandlers("afterPhysics", undefined);
   }
 
   /** Called to render the current frame. */
   @profile
   private render(dt: number) {
     this.cleanupEntities();
-    this.dispatch("render", { dt });
-    this.dispatch("lateRender", { dt });
-    profiler.measure("Game.draw", () => this.renderer.render());
+    gpuProfiler.start("Game.render");
+    const renderData: GameEventMap["render"] = { dt };
+    // In the same layers as ticks, so each layer's rendering is timed as a
+    // whole (by the GPU profiler too: some draw into textures as they go)
+    for (const layer of TICK_LAYERS) {
+      profiler.measure(`render.${layer}`, () =>
+        gpuProfiler.measure(layer, () =>
+          this.callHandlers(
+            "render",
+            renderData,
+            this.entities.getRenderersOnLayer(layer),
+          ),
+        ),
+      );
+    }
+    gpuProfiler.measure("lateRender", () =>
+      this.callHandlers("lateRender", renderData),
+    );
+    profiler.measure("Game.draw", () =>
+      gpuProfiler.measure("Game.draw", () => this.renderer.render()),
+    );
+    gpuProfiler.end();
+  }
+
+  /**
+   * Like dispatch, for the per-frame events, which respect pause. When the
+   * profiler wants entity detail, the time is attributed to each entity's
+   * class.
+   */
+  private callHandlers<E extends keyof BaseGameEvents>(
+    eventName: E,
+    data: BaseGameEvents[E],
+    entities: Iterable<Entity> = this.entities.getHandlers(eventName),
+  ) {
+    const paused = this.paused;
+    const handlerName = eventHandlerName(eventName);
+    if (profiler.entityDetail) {
+      for (const entity of entities) {
+        if (entity.isAdded && !(paused && entity.pausable)) {
+          profiler.measure(entity.constructor.name, () =>
+            (entity[handlerName] as (data: BaseGameEvents[E]) => void)(data),
+          );
+        }
+      }
+    } else {
+      for (const entity of entities) {
+        if (entity.isAdded && !(paused && entity.pausable)) {
+          (entity[handlerName] as (data: BaseGameEvents[E]) => void)(data);
+        }
+      }
+    }
   }
 
   // Handle beginning of collision between things.
@@ -594,7 +688,7 @@ export class Game {
     const ownerB = shapeB.owner ?? bodyB.owner;
 
     // If either owner has been removed from the game, we shouldn't do the contact
-    if (ownerA?.isAdded && ownerB?.isAdded) {
+    if (!wasRemoved(ownerA) && !wasRemoved(ownerB)) {
       if (ownerA?.onBeginContact) {
         ownerA.onBeginContact({
           other: ownerB,
@@ -623,7 +717,7 @@ export class Game {
     const ownerB = shapeB.owner ?? bodyB.owner;
 
     // If either owner has been removed from the game, we shouldn't do the contact
-    if (ownerA?.isAdded && ownerB?.isAdded) {
+    if (!wasRemoved(ownerA) && !wasRemoved(ownerB)) {
       if (ownerA?.onEndContact) {
         ownerA.onEndContact({
           other: ownerB,
@@ -644,7 +738,7 @@ export class Game {
   @profile
   private contacts() {
     for (const contact of this.contactList.getContacts()) {
-      const { shapeA, shapeB, bodyA, bodyB, contactEquations } = contact;
+      const { shapeA, shapeB, bodyA, bodyB } = contact;
       const ownerA = shapeA.owner ?? bodyA.owner;
       const ownerB = shapeB.owner ?? bodyB.owner;
       if (ownerA?.onContacting) {
@@ -652,7 +746,6 @@ export class Game {
           other: ownerB,
           otherShape: shapeB,
           thisShape: shapeA,
-          contactEquations,
         });
       }
       if (ownerB?.onContacting) {
@@ -660,7 +753,6 @@ export class Game {
           other: ownerA,
           otherShape: shapeA,
           thisShape: shapeB,
-          contactEquations,
         });
       }
     }
@@ -672,7 +764,7 @@ export class Game {
     const ownerA = event.bodyA.owner;
     const ownerB = event.bodyB.owner;
     // If either owner has been removed from the game, we shouldn't do the contact
-    if (ownerA?.isAdded && ownerB?.isAdded) {
+    if (!wasRemoved(ownerA) && !wasRemoved(ownerB)) {
       if (ownerA?.onImpact) {
         ownerA.onImpact({ other: ownerB });
       }
@@ -681,4 +773,12 @@ export class Game {
       }
     }
   };
+}
+
+/**
+ * True if this is an entity that is no longer in the game. A body with no
+ * owner (like a bare static wall) was never removed, so its contacts count.
+ */
+function wasRemoved(entity: Entity | undefined): boolean {
+  return entity != undefined && !entity.isAdded;
 }

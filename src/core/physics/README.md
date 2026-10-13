@@ -87,7 +87,7 @@ particles and similar.
 ### Concave polygons
 
 `utils/fromPolygon.ts` decomposes a concave outline into convex pieces
-(via `poly-decomp`) and adds one `Convex` per piece:
+(via `poly-decomp-es`) and adds one `Convex` per piece:
 
 ```typescript
 import { fromPolygon } from "core/physics/utils/fromPolygon";
@@ -272,7 +272,8 @@ The World emits events during simulation. Subscribe using the EventEmitter API.
 world.on("beginContact", (event) => {
   console.log("Contact started:", event.bodyA.id, event.bodyB.id);
   console.log("Shapes:", event.shapeA, event.shapeB);
-  console.log("Contact points:", event.contactEquations);
+  // Equations are reused next step: copy what you need from them now
+  console.log("Contact points:", event.contactEquations.length);
 });
 
 world.on("endContact", (event) => {
@@ -394,9 +395,19 @@ const world = new World({
   solverConfig: {
     iterations: 10, // More = more stable, slower
     tolerance: 0.0001, // Convergence threshold
+    frictionIterations: 3, // See below
   },
+  substeps: 2, // Solve + integrate this many times per step()
 });
 ```
+
+**Friction:** with `frictionIterations: 0` (the default) every friction equation is limited by a fixed slip force, regardless of the `ContactMaterial`'s `friction`. With `frictionIterations > 0` the solver first runs that many iterations to estimate contact forces, then limits each friction equation to `friction × (average normal force of its contacts)`: proper Coulomb-style friction that scales with how hard the bodies are pressed together. Contacts whose material has zero friction then get no friction equations at all.
+
+**Substepping:** broadphase, narrowphase and contact generation run once per `step()`; constraint solving and position integration run `substeps` times at `dt / substeps`. This stiffens long constraint chains without multiplying collision detection cost.
+
+### What lasts past a step
+
+The world reuses its per-step objects rather than making new ones every step. Contact and friction equations, `Collision`s, `CollisionResult`s and their contacts are only good during the step they come from: a `beginContact` handler can read `contactEquations`, but must copy anything it wants to keep. Bodies, shapes and constraints are yours and last as long as you keep them.
 
 ## File Structure
 

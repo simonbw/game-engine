@@ -1,5 +1,4 @@
 import { CustomEvents } from "../../config/CustomEvent";
-import { LayerName } from "../../config/layers";
 import { TickLayerName } from "../../config/tickLayers";
 import { Game } from "../Game";
 import { Body } from "../physics/body/Body";
@@ -83,31 +82,22 @@ export interface Entity extends EventHandler<GameEventMap> {
   /** Like `sprite`, but for entities with several display objects. */
   sprites?: GameSprite[];
 
-  /**
-   * The render layer this entity is associated with. Used to index entities
-   * with `render` handlers by layer (`game.entities.getRenderersOnLayer`).
-   * Sprites pick their own layer via `GameSprite.layerName`.
-   */
-  readonly layer?: LayerName;
-
-  /** Multiple layers this entity is associated with. Use `layer` for the single-layer case. */
-  readonly layers?: readonly LayerName[];
-
   ///////////////////////
   /// Tick Layer Stuff ///
   ///////////////////////
 
   /**
-   * The tick layer this entity updates on (defaults to "main" if not specified).
-   * For single-layer entities, use this property.
+   * The tick layer this entity updates on. Without one, an entity is in its
+   * parent's layer (unless the parent uses `tickLayers`), else the default
+   * one ("main"). Entities also render layer by layer, in this layer.
    * For multi-layer entities, use `tickLayers` instead.
    */
   readonly tickLayer?: TickLayerName;
 
   /**
    * Multiple tick layers this entity updates on.
-   * The onTick callback will be called once for each layer.
-   * Use `tickLayer` for single-layer entities.
+   * The onTick callback will be called once for each layer, and onRender in
+   * the first of them. Use `tickLayer` for single-layer entities.
    */
   readonly tickLayers?: readonly TickLayerName[];
 
