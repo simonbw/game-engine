@@ -272,7 +272,8 @@ The World emits events during simulation. Subscribe using the EventEmitter API.
 world.on("beginContact", (event) => {
   console.log("Contact started:", event.bodyA.id, event.bodyB.id);
   console.log("Shapes:", event.shapeA, event.shapeB);
-  console.log("Contact points:", event.contactEquations);
+  // Equations are reused next step: copy what you need from them now
+  console.log("Contact points:", event.contactEquations.length);
 });
 
 world.on("endContact", (event) => {
