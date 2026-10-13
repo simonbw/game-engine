@@ -179,7 +179,7 @@ interface ServerHandle {
 async function startOwnServer(port: number): Promise<ServerHandle> {
   const url = `http://localhost:${port}`;
   // detached: true puts the child in its own process group so we can signal
-  // the whole tree (dev-server spawns Parcel as a child) via process.kill(-pid).
+  // the whole tree (npm spawns Vite as a child) via process.kill(-pid).
   const child: ChildProcess = spawn("npm", ["run", "dev-server"], {
     env: { ...process.env, PORT: String(port), NODE_ENV: "development" },
     detached: true,

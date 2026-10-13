@@ -311,7 +311,7 @@ There are a lot of random utilities I've written over the years. In particular, 
 ### Settings and tuning
 
 - `state/PersistedState.ts` — `createPersistedState({ key, default })` gives you a get/set/subscribe setting backed by localStorage. Call `setPersistedStateNamespace("my-game:setting:")` once at startup.
-- `tuning/` — Put `//#tunable { min: 0, max: 10 }` on the line above a `let` and a dev-only Parcel transform registers it with the `TuningPanel` (toggle with Backslash) so you can drag it live.
+- `tuning/` — Put `//#tunable { min: 0, max: 10 }` on the line above a `let` and a dev-only Vite plugin registers it with the `TuningPanel` (toggle with Backslash) so you can drag it live.
 
 ## Vector
 

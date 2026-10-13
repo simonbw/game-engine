@@ -36,6 +36,6 @@ while IFS= read -r claude_path; do
   ln -s "$desired_target" "$agent_path"
   created=$((created + 1))
   echo "CREATED $agent_path -> $desired_target"
-done < <(find . -name CLAUDE.md -not -path './node_modules/*' -not -path './dist/*' -not -path './.parcel-cache/*' -not -path './.claude/worktrees/*')
+done < <(find . -name CLAUDE.md -not -path './node_modules/*' -not -path './dist/*' -not -path './.claude/worktrees/*')
 
 echo "Done. created=$created updated=$updated skipped=$skipped"

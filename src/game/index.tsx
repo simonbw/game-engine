@@ -32,7 +32,7 @@ async function main() {
   await preloader.waitTillLoaded();
   preloader.destroy();
 
-  if (process.env.NODE_ENV === "development") {
+  if (import.meta.env.DEV) {
     // Backquote cycles through the stats panels
     game.addEntity(
       new StatsOverlay([

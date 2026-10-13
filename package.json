@@ -3,15 +3,18 @@
   "version": "1.0.0",
   "description": "My starter project for making lots of games",
   "scripts": {
-    "start": "NODE_ENV=development rm -rf .parcel-cache && concurrently -n assets,server \"npm run watch-manifest\" \"npm run dev-server\"",
-    "dev-server": "tsx ./bin/dev-server.ts",
-    "watch-manifest": "tsx ./bin/generate-asset-types.ts -d ./resources watch",
-    "build": "parcel build src/index.html",
+    "start": "concurrently -n assets,server \"npm run watch-manifest\" \"npm run dev-server\"",
+    "dev-server": "vite",
+    "watch-manifest": "tsx ./bin/generate-manifest.ts watch",
+    "build": "vite build",
+    "preview": "vite preview",
     "tsc": "tsc --noEmit",
     "tsc-watch": "tsc --noEmit --watch",
-    "prettier": "prettier --write src bin tests",
-    "generate-manifest": "tsx ./bin/generate-asset-types.ts -d ./resources",
-    "test": "playwright test",
+    "prettier": "prettier --write src bin tests vite-plugins",
+    "generate-manifest": "tsx ./bin/generate-manifest.ts",
+    "test": "npm run test:unit && playwright test",
+    "test:unit": "tsx --test \"tests/**/*.test.ts\"",
+    "test:e2e": "playwright test",
     "docs": "typedoc",
     "profile-game": "tsx ./bin/profile-game.ts"
   },
@@ -24,38 +27,21 @@
   "homepage": "https://github.com/simonbw/game-engine#readme",
   "dependencies": {
     "@picocss/pico": "^2.1.1",
-    "pixi-filters": "^6.1.5",
     "pixi.js": "^8.21.0",
     "poly-decomp": "^0.3.0",
     "preact": "^10.29.8"
   },
-  "alias": {
-    "react": "preact/compat",
-    "react-dom": "preact/compat",
-    "react-dom/client": "preact/compat/client",
-    "react/jsx-runtime": "preact/jsx-runtime",
-    "preact/jsx-dev-runtime": "preact/jsx-runtime"
-  },
   "devDependencies": {
-    "@parcel/config-default": "^2.16.4",
-    "@parcel/macros": "^2.16.4",
-    "@parcel/reporter-bundle-analyzer": "^2.16.4",
-    "@parcel/resolver-glob": "^2.16.4",
     "@playwright/test": "^1.63.0",
-    "@types/http-proxy": "^1.17.17",
-    "@types/node": "^24.0.4",
-    "@types/yargs": "^17.0.35",
+    "@types/node": "^24.19.2",
     "camelcase": "^9.0.0",
     "chokidar": "^5.0.0",
     "concurrently": "^10.0.5",
     "glob": "^13.0.6",
-    "http-proxy": "^1.18.1",
-    "parcel": "^2.16.4",
     "prettier": "^3.9.8",
-    "process": "^0.11.10",
     "tsx": "^4.23.15",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
-    "yargs": "^18.2.0"
+    "vite": "^8.3.4"
   }
 }

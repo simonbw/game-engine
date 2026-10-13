@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-- `npm start` - Start development server with asset watching and the Parcel dev server (proxied with COOP/COEP headers)
-- `npm run build` - Build production version using Parcel
+- `npm start` - Start the Vite dev server and the asset manifest watcher
+- `npm run build` - Build production version with Vite (into `dist/`)
 - `npm run tsc` - Run TypeScript type checking (no emit)
 - `npm run tsc-watch` - Run TypeScript type checking in watch mode
-- `npm test` - Run the Playwright end-to-end smoke tests (see `tests/CLAUDE.md` for testing philosophy)
+- `npm test` - Run the unit tests (`node:test`, in Node) and then the Playwright browser tests (see `tests/CLAUDE.md`)
 - `npm run prettier` - Format source code with Prettier
 - `npm run generate-manifest` - Generate asset type definitions from resources folder
 - `npm run profile-game` - Run the game headless and print a CPU profile (see `.claude/skills/profile-game`)
@@ -22,7 +22,7 @@ This is a custom 2D game engine built on TypeScript, with three main technology 
 
 - **Pixi.js** - 2D rendering engine for graphics and sprites
 - **Custom physics** - A 2D rigid body engine in `src/core/physics/` (a TypeScript port of p2.js with a faster solver). See `src/core/physics/CLAUDE.md`.
-- **Parcel** - Zero-config bundler and dev server
+- **Vite** - Bundler and dev server (`vite.config.mts`, plugins in `vite-plugins/`). It doesn't type check, so always run `npm run tsc` too.
 
 ### Entity-Component System
 
@@ -82,11 +82,8 @@ Common lifecycle events:
 
 ### Asset System
 
-The `bin/generate-asset-types.ts` script watches the `resources/` folder and generates:
-
-- Individual `.d.ts` files for each asset
-- `resources.ts` manifest with typed asset collections
-- Type-safe helper functions like `imageName()` and `soundName()`
+The `bin/generate-manifest.ts` script watches the `resources/` folder and generates `resources/resources.ts`, a manifest with typed asset collections (`ImageName`, `SoundName`, `FontName`). Each asset is named after its file, camelCased without the extension, and names must be unique per type.
+Use the helpers in `src/core/resources/resourceUtils.ts` like `imageName()` and `soundName()` to check names in code.
 
 ### Physics Integration
 

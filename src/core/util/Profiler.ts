@@ -434,7 +434,7 @@ function isStandardDecoratorCall(
  *
  * This will automatically profile as "MyClass.myMethod".
  *
- * Works with both `experimentalDecorators` (how Parcel/tsc compile the game)
+ * Works with both `experimentalDecorators` (how Vite/tsc compile the game)
  * and standard decorators (how some test runners transpile TypeScript).
  */
 export function profile(

@@ -1,7 +1,7 @@
 /**
  * Registry for runtime-tunable values.
  *
- * In development builds, the parcel-transformer-tunables plugin scans for
+ * In the dev server, the tunables Vite plugin (`vite-plugins/tunables.mts`) scans for
  * `//#tunable` comments above `let` declarations and injects registration
  * calls that wire each variable to this registry via a setter callback.
  *

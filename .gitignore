@@ -3,7 +3,6 @@ dist
 .DS_Store
 .cache
 .vercel
-.parcel-cache
 test-results/
 playwright-report/
 api-docs/

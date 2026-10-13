@@ -1,22 +1,36 @@
 // Headless sanity checks for the 2D physics engine. These run in Node (no
 // browser) and exercise the solver end to end: contacts, constraints, springs,
 // concave decomposition, raycasts, and sleeping.
-import { expect, test } from "@playwright/test";
-import { V } from "../src/core/Vector";
-import type { Body } from "../src/core/physics/body/Body";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { V } from "../../src/core/Vector";
+import type { Body } from "../../src/core/physics/body/Body";
 import {
   createPointMass2D,
   createRigid2D,
-} from "../src/core/physics/body/bodyFactories";
-import { DistanceConstraint } from "../src/core/physics/constraints/DistanceConstraint";
-import { LockConstraint } from "../src/core/physics/constraints/LockConstraint";
-import { RevoluteConstraint } from "../src/core/physics/constraints/RevoluteConstraint";
-import { Box } from "../src/core/physics/shapes/Box";
-import { Circle } from "../src/core/physics/shapes/Circle";
-import { Plane } from "../src/core/physics/shapes/Plane";
-import { LinearSpring } from "../src/core/physics/springs/LinearSpring";
-import { fromPolygon } from "../src/core/physics/utils/fromPolygon";
-import { SleepMode, World } from "../src/core/physics/world/World";
+} from "../../src/core/physics/body/bodyFactories";
+import { DistanceConstraint } from "../../src/core/physics/constraints/DistanceConstraint";
+import { LockConstraint } from "../../src/core/physics/constraints/LockConstraint";
+import { RevoluteConstraint } from "../../src/core/physics/constraints/RevoluteConstraint";
+import { Box } from "../../src/core/physics/shapes/Box";
+import { Circle } from "../../src/core/physics/shapes/Circle";
+import { Plane } from "../../src/core/physics/shapes/Plane";
+import { LinearSpring } from "../../src/core/physics/springs/LinearSpring";
+import { fromPolygon } from "../../src/core/physics/utils/fromPolygon";
+import { SleepMode, World } from "../../src/core/physics/world/World";
+
+/** Like Jest's toBeCloseTo: equal to `digits` decimal places */
+function assertClose(
+  actual: number | undefined,
+  expected: number,
+  digits: number,
+) {
+  const tolerance = 10 ** -digits / 2;
+  assert.ok(
+    actual !== undefined && Math.abs(actual - expected) < tolerance,
+    `expected ${actual} to be within ${tolerance} of ${expected}`,
+  );
+}
 
 /** Matches Game's default tick rate. */
 const DT = 1 / 120;
@@ -52,10 +66,10 @@ test("a ball falls onto a plane and comes to rest", () => {
 
   run(world, 3, [ball]);
 
-  expect(ball.position.y).toBeCloseTo(0.5, 1);
-  expect(Math.abs(ball.velocity.y)).toBeLessThan(0.05);
-  expect(impacts).toBeGreaterThan(0);
-  expect(Number.isFinite(ball.angle)).toBe(true);
+  assertClose(ball.position.y, 0.5, 1);
+  assert.ok(Math.abs(ball.velocity.y) < 0.05);
+  assert.ok(impacts > 0);
+  assert.equal(Number.isFinite(ball.angle), true);
 });
 
 test("boxes stack on a plane (Convex subclasses use Convex handlers)", () => {
@@ -78,10 +92,10 @@ test("boxes stack on a plane (Convex subclasses use Convex handlers)", () => {
 
   run(world, 4, [lower, upper]);
 
-  expect(lower.position.y).toBeCloseTo(0.5, 1);
-  expect(upper.position.y).toBeCloseTo(1.5, 1);
-  expect(Math.abs(lower.angle)).toBeLessThan(0.05);
-  expect(Math.abs(upper.angle)).toBeLessThan(0.1);
+  assertClose(lower.position.y, 0.5, 1);
+  assertClose(upper.position.y, 1.5, 1);
+  assert.ok(Math.abs(lower.angle) < 0.05);
+  assert.ok(Math.abs(upper.angle) < 0.1);
 });
 
 test("a revolute joint keeps a pendulum at fixed length", () => {
@@ -102,8 +116,8 @@ test("a revolute joint keeps a pendulum at fixed length", () => {
     minY = Math.min(minY, bob.position.y);
   }
 
-  expect(bob.position.magnitude).toBeCloseTo(1, 1);
-  expect(minY).toBeLessThan(-0.9);
+  assertClose(bob.position.magnitude, 1, 1);
+  assert.ok(minY < -0.9);
 });
 
 test("distance constraints hold point-point and point-rigid pairs", () => {
@@ -129,8 +143,8 @@ test("distance constraints hold point-point and point-rigid pairs", () => {
 
   run(world, 2, [point, rigid]);
 
-  expect(point.position.sub(pinned.position).magnitude).toBeCloseTo(1, 1);
-  expect(rigid.position.sub(point.position).magnitude).toBeCloseTo(1, 1);
+  assertClose(point.position.sub(pinned.position).magnitude, 1, 1);
+  assertClose(rigid.position.sub(point.position).magnitude, 1, 1);
 });
 
 test("a lock constraint holds a rigid offset and angle", () => {
@@ -150,10 +164,10 @@ test("a lock constraint holds a rigid offset and angle", () => {
   run(world, 2);
 
   const offset = b.position.sub(a.position).rotate(-a.angle);
-  expect(offset.x).toBeCloseTo(2, 1);
-  expect(offset.y).toBeCloseTo(0, 1);
-  expect(b.angle - a.angle).toBeCloseTo(0, 1);
-  expect(a.position.magnitude).toBeGreaterThan(0.1);
+  assertClose(offset.x, 2, 1);
+  assertClose(offset.y, 0, 1);
+  assertClose(b.angle - a.angle, 0, 1);
+  assert.ok(a.position.magnitude > 0.1);
 });
 
 test("a linear spring settles at its rest length", () => {
@@ -177,7 +191,7 @@ test("a linear spring settles at its rest length", () => {
 
   run(world, 5);
 
-  expect(mass.position.magnitude).toBeCloseTo(1, 1);
+  assertClose(mass.position.magnitude, 1, 1);
 });
 
 test("fromPolygon decomposes a concave shape that then collides", () => {
@@ -196,16 +210,16 @@ test("fromPolygon decomposes a concave shape that then collides", () => {
     V(1, 2),
     V(0, 2),
   ]);
-  expect(ok).toBe(true);
-  expect(lShape.shapes.length).toBeGreaterThanOrEqual(2);
-  expect(lShape.concavePath?.length).toBe(6);
+  assert.equal(ok, true);
+  assert.ok(lShape.shapes.length >= 2);
+  assert.equal(lShape.concavePath?.length, 6);
   world.bodies.add(lShape);
 
   run(world, 3, [lShape]);
 
-  expect(lShape.position.y).toBeGreaterThan(0.3);
-  expect(lShape.position.y).toBeLessThan(2);
-  expect(Math.abs(lShape.velocity.y)).toBeLessThan(0.1);
+  assert.ok(lShape.position.y > 0.3);
+  assert.ok(lShape.position.y < 2);
+  assert.ok(Math.abs(lShape.velocity.y) < 0.1);
 });
 
 test("raycast hits a circle", () => {
@@ -216,8 +230,8 @@ test("raycast hits a circle", () => {
 
   const hit = world.raycast(V(0, 0), V(10, 0));
 
-  expect(hit?.body).toBe(target);
-  expect(hit?.fraction).toBeCloseTo(0.4, 3);
+  assert.equal(hit?.body, target);
+  assertClose(hit?.fraction, 0.4, 3);
 });
 
 test("a resting body falls asleep", () => {
@@ -237,5 +251,5 @@ test("a resting body falls asleep", () => {
 
   run(world, 4, [ball]);
 
-  expect(ball.isSleeping()).toBe(true);
+  assert.equal(ball.isSleeping(), true);
 });

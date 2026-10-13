@@ -11,12 +11,22 @@
     "allowSyntheticDefaultImports": true,
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
-    "lib": ["ES2024", "dom"],
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "noEmit": true,
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
     // V2d extends Array and re-declares `length`; keep assignment semantics for class fields
-    "useDefineForClassFields": false
-  }
+    "useDefineForClassFields": false,
+    "types": ["vite/client", "node"]
+  },
+  "include": [
+    "src",
+    "bin",
+    "tests",
+    "resources",
+    "vite-plugins",
+    "playwright.config.ts",
+    "vite.config.mts"
+  ]
 }

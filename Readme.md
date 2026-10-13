@@ -62,8 +62,10 @@ It started life as a TypeScript port of [p2.js](https://github.com/schteppe/p2.j
 and has since gained a much faster solver, substepping, sleeping, and continuous collision detection.
 See `src/core/physics/README.md` for the details.
 
-### Parcel
+### Vite
 
-This project uses [Parcel](https://parceljs.org/) as the bundler and dev server.
-It handles everything with almost zero configuration and tends to _just work_.
-Hopefully you shouldn't have to mess with this.
+This project uses [Vite](https://vite.dev/) as the bundler and dev server (`vite.config.mts`).
+The dev server starts in about a second, serves the game at `/` and the entity studio at `/core/entity-studio/entity-studio.html`,
+and sends the cross-origin isolation headers the profiler needs for fine-grained timers.
+The project's own Vite plugins are in `vite-plugins/`.
+Vite doesn't type check, so run `npm run tsc` too.
