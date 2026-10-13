@@ -181,6 +181,7 @@ Layers are defined in `src/config/layers.ts` and render in the order they are de
 ```TypeScript
 export const LAYERS = {
   main: new LayerInfo(), // Default layer
+  lighting: new LayerInfo({ parallax: V(0, 0) }), // Lighting, if there is any (see below)
   hud: new LayerInfo({ parallax: V(0, 0) }), // Fixed to the screen
   debugHud: new LayerInfo({ parallax: V(0, 0) }),
 };
@@ -295,6 +296,19 @@ Key concepts:
 - **Shapes** — Collision geometry: `Circle`, `Box`, `Convex`, `Capsule`, `Line`, `Plane`, `Particle`, `Heightfield`
 - **Constraints** — Maintain relationships between bodies: `DistanceConstraint`, `RevoluteConstraint`, `LockConstraint`
 - **Springs** — Soft connections: `LinearSpring`, `RotationalSpring`, `RopeSpring`, and more
+
+## Lighting
+
+Optional: lights with soft shadows, in `lighting/`. Nothing is lit until the game adds a `LightingManager`, which goes in a layer that doesn't move with the camera (the template's `lighting` layer) and darkens and colors everything below it.
+
+```TypeScript
+game.addEntity(new LightingManager({ layer: "lighting" }));
+game.addEntity(new AmbientLight(0x202024));
+wall.tags.push(CAST_SHADOW_TAG);
+this.addChild(new PointLight({ radius: 8, color: 0xffaa66, position: [x, y] }));
+```
+
+Lights are static unless made `dynamic`, which matters for how much they cost. See [lighting/CLAUDE.md](./lighting/CLAUDE.md).
 
 ## Sound
 

@@ -10,6 +10,10 @@ import { LayerInfo } from "../core/graphics/LayerInfo";
 export const LAYERS = {
   // DEFAULT: The main stuff
   main: new LayerInfo(),
+  // Lighting, if the game has a LightingManager (src/core/lighting/): it
+  // darkens and colors everything below it. Drawn in screen coordinates, so
+  // it doesn't move with the camera. Things that glow go above it.
+  lighting: new LayerInfo({ parallax: V(0, 0) }),
   // Stuff not in the world
   hud: new LayerInfo({ parallax: V(0, 0) }),
   // Stuff on the absolute top that's just used for debugging

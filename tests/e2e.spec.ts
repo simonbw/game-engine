@@ -208,3 +208,135 @@ test("entity studio loads without errors", async ({ page }) => {
   // --- Assertion: No errors while loading ---
   expect(issues).toHaveLength(0);
 });
+
+test("lighting draws lights, shadows and ambient light", async ({ page }) => {
+  const issues = collectIssues(page);
+
+  await page.goto("/");
+  await page.waitForFunction(() => (window.DEBUG?.game?.ticknumber ?? 0) > 0, {
+    timeout: 30000,
+  });
+
+  const result = await page.evaluate(async () => {
+    const load = <T>(path: string): Promise<T> => import(path);
+    const { BaseEntity } = await load<
+      typeof import("../src/core/entity/BaseEntity")
+    >("/core/entity/BaseEntity.ts");
+    const { createRigid2D } = await load<
+      typeof import("../src/core/physics/body/bodyFactories")
+    >("/core/physics/body/bodyFactories.ts");
+    const { Box } = await load<typeof import("../src/core/physics/shapes/Box")>(
+      "/core/physics/shapes/Box.ts",
+    );
+    const { CAST_SHADOW_TAG } = await load<
+      typeof import("../src/core/lighting/casters")
+    >("/core/lighting/casters.ts");
+    const { LightingManager } = await load<
+      typeof import("../src/core/lighting/LightingManager")
+    >("/core/lighting/LightingManager.ts");
+    const { PointLight } = await load<
+      typeof import("../src/core/lighting/PointLight")
+    >("/core/lighting/PointLight.ts");
+    const { AmbientLight } = await load<
+      typeof import("../src/core/lighting/AmbientLight")
+    >("/core/lighting/AmbientLight.ts");
+    const { V } =
+      await load<typeof import("../src/core/Vector")>("/core/Vector.ts");
+    const game = window.DEBUG.game!;
+    game.manualFrames = true;
+    const step = () => {
+      game.camera.center(V(0, 0));
+      game.camera.z = 25;
+      game.stepFrames(1);
+    };
+
+    // A wall a few meters to the right of the light
+    class Wall extends BaseEntity {
+      tags = [CAST_SHADOW_TAG];
+      body = createRigid2D({ motion: "static", position: [3, 0] });
+      constructor() {
+        super();
+        this.body.addShape(new Box({ width: 0.5, height: 4 }));
+      }
+    }
+
+    // Lights and walls before there's a manager: nothing draws them, and
+    // nothing breaks
+    const wall = game.addEntity(new Wall());
+    const ambient = game.addEntity(new AmbientLight(0x202020));
+    const light = game.addEntity(
+      new PointLight({ radius: 8, position: [0, 0] }),
+    );
+    step();
+
+    // Then the manager, which finds them
+    const manager = game.addEntity(new LightingManager({ layer: "lighting" }));
+    let draws = 0;
+    const m = manager as any;
+    const drawLights = m.drawLights.bind(manager);
+    m.drawLights = (...args: unknown[]) => {
+      draws++;
+      return drawLights(...args);
+    };
+    step();
+
+    /** The red channel of the lighting at a point in the world, 0 to 255 */
+    const brightness = (x: number, y: number) => {
+      const renderer = game.renderer.app.renderer;
+      const texture = manager.texture;
+      const { pixels, width } = renderer.extract.pixels({ target: texture });
+      const scale = texture.source.pixelWidth / texture.width;
+      const [sx, sy] = game.camera.toScreen(V(x, y));
+      const i = (Math.round(sy * scale) * width + Math.round(sx * scale)) * 4;
+      return pixels[i];
+    };
+    const lit = brightness(1.5, 0);
+    const shadowed = brightness(4.5, 0);
+    const sameDistance = brightness(0, 4.5);
+    const outOfReach = brightness(20, 0);
+    const drawsAtFirst = draws;
+
+    // A static light that hasn't changed isn't drawn again, and nor is one
+    // that only got brighter; one that moved is
+    draws = 0;
+    step();
+    step();
+    light.setIntensity(0.5);
+    step();
+    const drawsUnchanged = draws;
+    light.setPosition([0, 1]);
+    step();
+    const drawsMoved = draws - drawsUnchanged;
+
+    for (const e of [manager, light, ambient, wall]) {
+      e.destroy();
+    }
+    game.manualFrames = false;
+    return {
+      lit,
+      shadowed,
+      sameDistance,
+      outOfReach,
+      drawsAtFirst,
+      drawsUnchanged,
+      drawsMoved,
+    };
+  });
+  console.log("Lighting:", result);
+
+  // --- Assertion: Lit near the light, ambient (0x20) out of its reach ---
+  expect(result.lit).toBeGreaterThan(100);
+  expect(Math.abs(result.outOfReach - 0x20)).toBeLessThanOrEqual(2);
+  // --- Assertion: The wall's shadow is as dark as the ambient light, and
+  // as far away the other way isn't shadowed ---
+  expect(Math.abs(result.shadowed - 0x20)).toBeLessThanOrEqual(2);
+  expect(result.sameDistance).toBeGreaterThan(result.shadowed + 10);
+  // --- Assertion: Static lights are drawn once, and again only when they
+  // change in a way that shows in their square ---
+  expect(result.drawsAtFirst).toBe(1);
+  expect(result.drawsUnchanged).toBe(0);
+  expect(result.drawsMoved).toBe(1);
+
+  // --- Assertion: No errors ---
+  expect(issues).toHaveLength(0);
+});
