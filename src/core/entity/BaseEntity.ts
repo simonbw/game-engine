@@ -1,4 +1,3 @@
-import { LayerName } from "../../config/layers";
 import { TickLayerName } from "../../config/tickLayers";
 import { EntityDef } from "../EntityDef";
 import { Game } from "../Game";
@@ -28,8 +27,6 @@ export abstract class BaseEntity implements Entity {
   tags: string[] = [];
   sprite?: GameSprite;
   sprites?: GameSprite[];
-  /** The render layer this entity is associated with */
-  layer?: LayerName;
   /** The tick layer this entity updates on */
   tickLayer?: TickLayerName;
 

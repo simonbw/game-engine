@@ -106,6 +106,42 @@ test("game initializes and runs without errors", async ({ page }) => {
   );
   expect(laterTicks).toBeGreaterThan(initialTicks);
 
+  // --- Assertion: Frame pacing found the display's refresh rate, and runs
+  // ticks at it (or a multiple, below 60 fps) ---
+  const pacing = await page.evaluate(() => {
+    const game = window.DEBUG.game!;
+    return {
+      refreshRate: game.refreshRate,
+      ticksPerSecond: game.ticksPerSecond,
+      targetFrameRate: game.targetFrameRate,
+    };
+  });
+  console.log("Frame pacing:", pacing);
+  expect(pacing.refreshRate).toBeGreaterThanOrEqual(28);
+  expect(pacing.ticksPerSecond).toBeGreaterThanOrEqual(60);
+
+  // --- Assertion: With manual frames, only stepFrames moves the game on,
+  // a frame and its ticks at a time ---
+  const stepped = await page.evaluate(async () => {
+    const game = window.DEBUG.game!;
+    game.manualFrames = true;
+    const before = { frames: game.framenumber, ticks: game.ticknumber };
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const idle = game.framenumber - before.frames;
+    game.stepFrames(10);
+    const result = {
+      idle,
+      frames: game.framenumber - before.frames,
+      ticks: game.ticknumber - before.ticks,
+      ticksPerFrame: game.ticksPerFrame,
+    };
+    game.manualFrames = false;
+    return result;
+  });
+  expect(stepped.idle).toBe(0);
+  expect(stepped.frames).toBe(10);
+  expect(stepped.ticks).toBe(10 * stepped.ticksPerFrame);
+
   // --- Assertion: No errors while running ---
   expect(issues).toHaveLength(0);
 });

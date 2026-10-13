@@ -6,8 +6,8 @@ export interface ProfileRowProps {
 }
 
 export const ProfileRow = ({ stat, frameTotalMs }: ProfileRowProps) => {
-  const isFrameMetric = stat.shortLabel === "loop" && stat.depth === 0;
-  const isSlow = isFrameMetric && stat.msPerFrame > 16.67;
+  // The root of the tree is the whole frame
+  const isSlow = stat.depth === 0 && stat.msPerFrame > 16.67;
 
   // Calculate bar width as percentage of frame time
   const barPercent = Math.min(
@@ -24,11 +24,8 @@ export const ProfileRow = ({ stat, frameTotalMs }: ProfileRowProps) => {
       ? `(x${Math.round(stat.callsPerFrame).toLocaleString()})`
       : "";
 
-  const timeDisplay =
-    stat.msPerFrame.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }) + "ms";
+  const timeDisplay = stat.msPerFrame.toFixed(2) + "ms";
+  const maxDisplay = "max " + stat.maxMs.toFixed(1);
 
   const indent = "  ".repeat(stat.depth);
   const copyText = `${indent}${stat.shortLabel}${callsDisplay ? " " + callsDisplay : ""} ${timeDisplay}`;
@@ -49,6 +46,7 @@ export const ProfileRow = ({ stat, frameTotalMs }: ProfileRowProps) => {
         )}
       </div>
       <div className="profile-row__time" aria-hidden="true">
+        <span className="profile-row__max">{maxDisplay}</span>
         {timeDisplay}
       </div>
     </div>

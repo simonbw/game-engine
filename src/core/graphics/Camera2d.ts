@@ -41,6 +41,7 @@ export class Camera2d extends BaseEntity implements Entity {
   private _position: V2d;
   private _z: number;
   private _angle: number;
+  private _shakeOffset: V2d = V(0, 0);
   velocity: V2d;
 
   parallaxScale = 0.1;
@@ -140,6 +141,26 @@ export class Camera2d extends BaseEntity implements Entity {
     this.invalidateCache();
   }
 
+  /**
+   * Where the camera is drawn from relative to its position, for screen
+   * shake. Kept apart from `position` so whatever moves the camera doesn't
+   * fight it. Set it with `setShakeOffset`.
+   */
+  get shakeOffset(): ReadonlyV2d {
+    return this._shakeOffset;
+  }
+
+  /** Offset the view from the camera's position (for screen shake) */
+  setShakeOffset(x: number, y: number): void {
+    if (!this.isValidPosition(x) || !this.isValidPosition(y)) {
+      console.warn("Camera2d.setShakeOffset: Invalid offset rejected:", x, y);
+      return;
+    }
+    this._shakeOffset[0] = x;
+    this._shakeOffset[1] = y;
+    this.invalidateCache();
+  }
+
   /** Set position directly (invalidates cache) */
   setPosition(x: number, y: number): void {
     if (!this.isValidPosition(x) || !this.isValidPosition(y)) {
@@ -215,6 +236,10 @@ export class Camera2d extends BaseEntity implements Entity {
     this.vy = vy + k * (y - this.y);
   }
 
+  /**
+   * Move the camera's velocity part of the way to `[vx, vy]`; `stiffness` is
+   * the part of the way it goes per 60th of a second. Call this from `onTick`.
+   */
   smoothSetVelocity([vx, vy]: ReadonlyV2d, stiffness: number = 0.9) {
     if (!this.isValidVelocity(vx) || !this.isValidVelocity(vy)) {
       console.warn(
@@ -224,17 +249,23 @@ export class Camera2d extends BaseEntity implements Entity {
       );
       return;
     }
-    this.vx = lerpOrSnap(this.vx, vx, stiffness, 0.001);
-    this.vy = lerpOrSnap(this.vy, vy, stiffness, 0.001);
+    const moved = 1 - perTick(1 - stiffness, this.game.tickDuration);
+    this.vx = lerpOrSnap(this.vx, vx, moved, 0.001);
+    this.vy = lerpOrSnap(this.vy, vy, moved, 0.001);
   }
 
-  /** Move the camera part of the way to the desired zoom. */
+  /**
+   * Move the camera part of the way to the desired zoom; `smooth` is the
+   * part of the way it doesn't go per 60th of a second. Call this from
+   * `onTick`.
+   */
   smoothZoom(z: number, smooth: number = 0.9) {
     if (!this.isValidZoom(z)) {
       console.warn("Camera2d.smoothZoom: Invalid zoom rejected:", z);
       return;
     }
-    this.z = smooth * this.z + (1 - smooth) * z;
+    const kept = perTick(smooth, this.game.tickDuration);
+    this.z = kept * this.z + (1 - kept) * z;
   }
 
   /** Returns [width, height] of the viewport in pixels */
@@ -329,7 +360,9 @@ export class Camera2d extends BaseEntity implements Entity {
       return this._cachedMatrix;
     }
 
-    const { x: cx, y: cy, z, angle } = this;
+    const { z, angle } = this;
+    const cx = this.x + this._shakeOffset[0];
+    const cy = this.y + this._shakeOffset[1];
 
     const matrix = new Matrix()
       // align the anchor with the camera
@@ -394,4 +427,9 @@ export function viewportContains(
     point[1] >= viewport.top &&
     point[1] <= viewport.bottom
   );
+}
+
+/** A fraction kept per 60th of a second, as the fraction kept per tick of `tickDuration` */
+function perTick(keptPer60th: number, tickDuration: number): number {
+  return Math.pow(keptPer60th, 60 * tickDuration);
 }

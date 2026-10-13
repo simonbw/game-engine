@@ -44,7 +44,10 @@ export type BaseGameEvents = {
   afterPhysics: void;
   /** Called after each physics step (inside the tick loop, before contacts). Data is the step dt. */
   afterPhysicsStep: number;
-  /** Called before rendering - use destructuring: onRender({ dt }) */
+  /**
+   * Called before rendering, layer by layer like ticks - use destructuring:
+   * onRender({ dt })
+   */
   render: {
     /** Delta time since last frame */
     dt: number;
@@ -54,9 +57,15 @@ export type BaseGameEvents = {
     /** Delta time since last frame */
     dt: number;
   };
-  /** Called during the update tick */
+  /** Called at the start of every tick, before any tick layer. Data is the tick's dt. */
+  beforeTick: number;
+  /** Called during the update tick, layer by layer (see `tickLayer`) */
   tick: {
-    /** Fixed timestep duration for this tick, in seconds */
+    /**
+     * Seconds this tick simulates: 1 / `game.ticksPerSecond`, times
+     * `game.slowMo`. The tick rate follows the display's refresh rate, so
+     * scale anything that changes per tick by this.
+     */
     dt: number;
     /** The audio context time this tick corresponds to. Use it to schedule sounds precisely. */
     audioTime: number;

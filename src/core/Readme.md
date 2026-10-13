@@ -12,7 +12,7 @@ Some things that `Game` does:
 
 - Initializes the physics, rendering, and input handling systems
 - Keeps track of entities
-- Runs the game loop
+- Runs the game loop: one frame (a `tick` and a `render`) per display refresh, with `dt` the ideal frame time (1 / refresh rate) rather than however long the frame took (see `FramePacing.ts`). The refresh rate is measured from animation frame timestamps, `frameRateLimit` caps it, frames below 60 fps run more than one tick, and a dropped frame is caught up (at most 3 frames, then the game slows down). `manualFrames` and `stepFrames(n)` run frames by hand, for recording video or stepping from the console.
 - Runs the event system, dispatching events and calling the appropriate handlers on entities
 
 ## Entities
@@ -58,7 +58,8 @@ Useful for initializing stuff that you need access to the `game` for.
 
 #### `@on("tick")`
 
-If you want an entity to do something every frame, put that logic in the `onTick()` method.
+If you want an entity to do something every physics step, put that logic in the `onTick()` method.
+The tick rate follows the display (60, 120, 144 per second...), so anything that changes per tick has to scale with `dt`: a velocity times `dt`, or a smoothing factor as `Math.pow(kept, dt * 60)`, never a fixed amount per tick.
 
 ```TypeScript
   @on("tick")
@@ -74,6 +75,8 @@ If you want an entity to do something every frame, put that logic in the `onTick
 
 Called on every frame right before the screen is redrawn.
 Useful for logic like syncing a sprite's position to its body.
+Keep it to looks: anything that affects the game belongs in `onTick`.
+Off-screen entities can skip their drawing work with `game.camera.isVisible(x, y, radius)`.
 
 ```TypeScript
   @on("render")
@@ -98,12 +101,16 @@ _Note: `imageName` is a helper function that limits the string type to only name
 
 Ticks run in phases defined in `src/config/tickLayers.ts` (`input`, `main`, `effects`, `camera`).
 Set `tickLayer` on an entity to pick a phase; everything on an earlier layer ticks before anything on a later one.
+An entity without a `tickLayer` is in its parent's, so children tick with their parents.
 The camera ticks last so it always follows final positions.
+`render` handlers run in the same layers, so the profiler reports ticking and rendering per layer.
 
 ### Less important events
 
 `@on("afterAdded")` — Called when added to the game, _after_ the body, sprite, handlers, and everything else is dealt with.
 Most of the time you probably want to use `onAdd`, but there are some times when this comes in handy.
+
+`@on("beforeTick")` — Called at the start of every tick, before any `onTick` handlers.
 
 `@on("pause")` — Called when the game is paused
 

@@ -61,7 +61,8 @@ import { on } from "../core/entity/handler";
 class MyEntity extends BaseEntity {
   @on("tick")
   onTick({ dt }: GameEventMap["tick"]) {
-    // Called every physics tick (120fps by default)
+    // Called every physics tick: one per display refresh (60, 120, 144 Hz...),
+    // so scale anything that changes per tick by dt
   }
 
   @on("render")
@@ -136,7 +137,9 @@ profiler.measure("myOperation", () => {
 profiler.count("frequentEvent");
 ```
 
-The game loop automatically profiles `Game.nextFrame`, `Game.tick`, each tick layer, `Game.physics`, `Game.render`, and `Game.draw`.
+The game loop automatically profiles `Game.nextFrame`, `Game.tick`, each tick layer (`tick.<layer>`, and `render.<layer>` for rendering), `Game.physics`, `Game.render`, and `Game.draw`.
+The profiler panel also times the GPU's work (`src/core/util/GpuProfiler.ts`, WebGL timer queries), and while it's open, each entity class's handlers (`profiler.entityDetail`).
+For benchmarks, `profiler.startCapture()` / `stopCapture()` give exact averages over a window.
 In a dev build, press Backquote to cycle through the stats overlay panels, and Backslash to open the tuning panel for `//#tunable` values.
 
 ## Development Practice

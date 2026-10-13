@@ -9,8 +9,10 @@ export interface StatsPanelContext {
   game: Game;
   /** Smoothed FPS from frame timing */
   fps: number;
-  /** Screen refresh rate FPS */
-  fps2: number;
+  /** The frame rate the game is aiming for */
+  targetFps: number;
+  /** The display's refresh rate, as measured */
+  refreshRate: number;
 }
 
 /**
@@ -22,7 +24,13 @@ export interface StatsPanel {
   id: string;
 
   /** Render the panel content */
-  render(ctx: StatsPanelContext): VNode;
+  render(ctx: StatsPanelContext): VNode | null;
+
+  /** Called when the panel becomes the visible one */
+  onShow?(): void;
+
+  /** Called when the panel stops being the visible one */
+  onHide?(): void;
 
   /**
    * Optional keyboard handler.

@@ -1,5 +1,4 @@
 import type { VNode } from "preact";
-import { LayerName } from "../../../config/layers";
 import { Entity, GameEventMap } from "../../entity/Entity";
 import { on } from "../../entity/handler";
 import { ReactEntity } from "../../ReactEntity";
@@ -11,9 +10,11 @@ const SMOOTHING = 0.95;
 const RENDER_THROTTLE = 3; // Only re-render every N frames
 
 /**
- * Stats overlay entity that displays debug/performance information.
- * Accepts an array of panels via constructor - each panel is self-contained
- * with its own rendering, data fetching, and keyboard handling.
+ * Stats overlay entity that displays debug/performance information in the
+ * corner of the screen. Backquote cycles through the panels (shift for
+ * backwards), and `showPanel` picks one from code (for a "Show FPS" setting,
+ * say); each panel is self-contained with its own rendering, data fetching,
+ * and keyboard handling.
  *
  * @example
  * ```typescript
@@ -31,6 +32,8 @@ const RENDER_THROTTLE = 3; // Only re-render every N frames
  */
 export class StatsOverlay extends ReactEntity implements Entity {
   persistenceLevel = 100;
+  // Keeps showing (and cycling) while the game is paused
+  pausable = false;
 
   private panels: StatsPanel[];
   private activePanelIndex: number = -1; // -1 = closed
@@ -39,26 +42,33 @@ export class StatsOverlay extends ReactEntity implements Entity {
   private lastUpdate = performance.now();
   private frameCounter = 0;
 
-  layer: LayerName = "debugHud";
-
-  constructor(panels: StatsPanel[]) {
+  /**
+   * @param panels The panels to cycle through, in order
+   * @param initialPanel The id of the panel to start on, or undefined to start closed
+   */
+  constructor(panels: StatsPanel[], initialPanel?: string) {
     super(() => this.renderContent(), false); // autoRender = false for throttling
     this.panels = panels;
+    this.activePanelIndex = panels.findIndex((p) => p.id === initialPanel);
   }
 
-  private renderContent(): VNode {
-    if (this.activePanelIndex < 0) {
-      return <></>;
-    }
+  /** The panel that's showing, if any */
+  get activePanel(): StatsPanel | undefined {
+    return this.panels[this.activePanelIndex];
+  }
 
-    const panel = this.panels[this.activePanelIndex];
+  private renderContent(): VNode | null {
+    const panel = this.activePanel;
+    if (!panel) {
+      return null;
+    }
     const ctx = this.getContext();
 
     return (
       <div className="stats-overlay">
         <div className="stats-overlay__header">
           <span>
-            FPS: {ctx.fps} ({ctx.fps2})
+            FPS: {ctx.fps} / {ctx.targetFps} ({ctx.refreshRate} Hz)
           </span>
         </div>
         {panel.render(ctx)}
@@ -70,23 +80,45 @@ export class StatsOverlay extends ReactEntity implements Entity {
     return {
       game: this.game,
       fps: Math.ceil(1000 / this.averageDuration),
-      fps2: this.game.getScreenFps(),
+      targetFps: this.game.targetFrameRate,
+      refreshRate: this.game.refreshRate,
     };
   }
 
   private cycleMode(direction: 1 | -1) {
     // -1 = closed, 0..n-1 = panel indices
     const total = this.panels.length + 1; // +1 for closed state
-    this.activePanelIndex =
-      ((this.activePanelIndex + 1 + direction + total) % total) - 1;
+    this.setActivePanel(
+      ((this.activePanelIndex + 1 + direction + total) % total) - 1,
+    );
+  }
+
+  /** Shows the panel with this id, or closes the overlay for undefined */
+  showPanel(id: string | undefined) {
+    this.setActivePanel(this.panels.findIndex((p) => p.id === id));
+  }
+
+  private setActivePanel(index: number) {
+    this.activePanel?.onHide?.();
+    this.activePanelIndex = index;
+    this.activePanel?.onShow?.();
     // Immediately render to show the change (don't wait for throttle)
-    this.reactRender();
+    if (this.isAdded) {
+      this.reactRender();
+    }
   }
 
   @on("add")
   onAdd() {
-    super.onAdd();
     this.averageDuration = 1000 / 120;
+    this.activePanel?.onShow?.();
+    super.onAdd();
+  }
+
+  @on("destroy")
+  onDestroy(data: GameEventMap["destroy"]) {
+    this.activePanel?.onHide?.();
+    super.onDestroy(data);
   }
 
   @on("render")
@@ -116,9 +148,6 @@ export class StatsOverlay extends ReactEntity implements Entity {
     }
 
     // Delegate to active panel
-    if (this.activePanelIndex >= 0) {
-      const panel = this.panels[this.activePanelIndex];
-      panel.onKeyDown?.(this.getContext(), key, event);
-    }
+    this.activePanel?.onKeyDown?.(this.getContext(), key, event);
   }
 }

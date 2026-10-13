@@ -1,8 +1,10 @@
 import { SpatialHashingBroadphase } from "../../physics/collision/broadphase/SpatialHashingBroadphase";
+import { gpuProfiler } from "../GpuProfiler";
 import { profiler } from "../Profiler";
 import { ProfileRow } from "./ProfileRow";
 import type { StatsPanel, StatsPanelContext } from "./StatsPanel";
 
+const FRAME_SCOPE = "Game.nextFrame";
 const TOP_N_PROFILES = 200;
 const TOP_N_CHILDREN = 6;
 
@@ -20,7 +22,8 @@ declare global {
 }
 
 /**
- * Creates a profiler panel with CPU timing breakdown.
+ * Creates a profiler panel with the per-frame CPU breakdown as a tree. While
+ * visible it turns on per-entity-class timing (see Profiler.entityDetail).
  */
 export function createProfilerPanel(): StatsPanel {
   let profilingEnabled = true;
@@ -28,17 +31,28 @@ export function createProfilerPanel(): StatsPanel {
   return {
     id: "profiler",
 
+    onShow: () => {
+      profiler.entityDetail = true;
+      gpuProfiler.enabled = true;
+      gpuProfiler.maxDepth = Infinity;
+    },
+
+    onHide: () => {
+      profiler.entityDetail = false;
+      gpuProfiler.enabled = false;
+    },
+
     render: (ctx) => {
       const profileStats = profiler.getTopStats(
         TOP_N_PROFILES,
         TOP_N_CHILDREN,
-        "Game.nextFrame",
+        FRAME_SCOPE,
       );
       const basicStats = getBasicStats(ctx);
 
       // Find frame total for bar width calculations
       const frameStat = profileStats.find(
-        (s) => s.label === "Game.nextFrame" && s.depth === 0,
+        (s) => s.label === FRAME_SCOPE && s.depth === 0,
       );
       const frameTotalMs = frameStat?.msPerFrame ?? 1000 / 120;
 
@@ -55,31 +69,9 @@ export function createProfilerPanel(): StatsPanel {
           </div>
 
           <div className="stats-overlay__subheader">
-            Memory:{" "}
-            {performance.memory?.usedJSHeapSize != null
-              ? (performance.memory.usedJSHeapSize / 1e6).toLocaleString(
-                  undefined,
-                  {
-                    maximumFractionDigits: 0,
-                  },
-                )
-              : "N/A"}
-            {" / "}
-            {performance.memory?.totalJSHeapSize != null
-              ? (performance.memory.totalJSHeapSize / 1e6).toLocaleString(
-                  undefined,
-                  {
-                    maximumFractionDigits: 0,
-                  },
-                )
-              : "N/A"}
-            {" / "}
-            {(
-              (performance as any).memory?.jsHeapSizeLimit / 1e6
-            ).toLocaleString(undefined, {
-              maximumFractionDigits: 0,
-            }) ?? "N/A"}
-            MB
+            Memory: {formatMb(performance.memory?.usedJSHeapSize)} /{" "}
+            {formatMb(performance.memory?.totalJSHeapSize)} /{" "}
+            {formatMb(performance.memory?.jsHeapSizeLimit)} MB
           </div>
 
           <div className="stats-overlay__section">
@@ -102,6 +94,27 @@ export function createProfilerPanel(): StatsPanel {
               <div className="stats-overlay__empty">No profile data yet</div>
             )}
           </div>
+
+          {gpuProfiler.available && (
+            <div className="stats-overlay__section">
+              <div className="stats-overlay__section-header">
+                <span className="stats-overlay__section-title">GPU</span>
+                <span className="stats-overlay__hint">
+                  sections add up to more than the whole
+                </span>
+              </div>
+              {gpuProfiler
+                .getStats()
+                .filter((stat) => stat.msPerFrame >= 0.01)
+                .map((stat) => (
+                  <ProfileRow
+                    key={stat.label}
+                    stat={{ ...stat, callsPerFrame: 0, maxMs: 0 }}
+                    frameTotalMs={frameTotalMs}
+                  />
+                ))}
+            </div>
+          )}
         </>
       );
     },
@@ -109,6 +122,7 @@ export function createProfilerPanel(): StatsPanel {
     onKeyDown: (_ctx, key) => {
       if (key === "KeyR") {
         profiler.reset();
+        gpuProfiler.reset();
         return true;
       }
       if (key === "KeyP") {
@@ -121,16 +135,22 @@ export function createProfilerPanel(): StatsPanel {
   };
 }
 
+function formatMb(bytes: number | undefined): string {
+  return bytes == null ? "N/A" : (bytes / 1e6).toFixed(0);
+}
+
 function getBasicStats(ctx: StatsPanelContext) {
   const world = ctx.game.world;
-  const broadphase = ctx.game.world.broadphase as SpatialHashingBroadphase;
+  const broadphase = world.broadphase;
+  const spatialHash =
+    broadphase instanceof SpatialHashingBroadphase ? broadphase : undefined;
   return {
     entityCount: ctx.game.entities.all.size,
     bodyCount: world.bodies.length,
-    hugeBodyCount: broadphase.hugeBodies?.size ?? 0,
+    hugeBodyCount: spatialHash?.hugeBodies.size ?? 0,
     dynamicBodyCount: world.bodies.dynamic.length,
     kinematicBodyCount: world.bodies.kinematic.length,
-    particleBodyCount: broadphase.pointShapeBodies?.size ?? 0,
-    collisions: broadphase.debugData.numCollisions,
+    particleBodyCount: spatialHash?.pointShapeBodies.size ?? 0,
+    collisions: spatialHash?.debugData.numCollisions ?? 0,
   };
 }
