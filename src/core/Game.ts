@@ -594,7 +594,7 @@ export class Game {
     const ownerB = shapeB.owner ?? bodyB.owner;
 
     // If either owner has been removed from the game, we shouldn't do the contact
-    if (ownerA?.isAdded && ownerB?.isAdded) {
+    if (!wasRemoved(ownerA) && !wasRemoved(ownerB)) {
       if (ownerA?.onBeginContact) {
         ownerA.onBeginContact({
           other: ownerB,
@@ -623,7 +623,7 @@ export class Game {
     const ownerB = shapeB.owner ?? bodyB.owner;
 
     // If either owner has been removed from the game, we shouldn't do the contact
-    if (ownerA?.isAdded && ownerB?.isAdded) {
+    if (!wasRemoved(ownerA) && !wasRemoved(ownerB)) {
       if (ownerA?.onEndContact) {
         ownerA.onEndContact({
           other: ownerB,
@@ -672,7 +672,7 @@ export class Game {
     const ownerA = event.bodyA.owner;
     const ownerB = event.bodyB.owner;
     // If either owner has been removed from the game, we shouldn't do the contact
-    if (ownerA?.isAdded && ownerB?.isAdded) {
+    if (!wasRemoved(ownerA) && !wasRemoved(ownerB)) {
       if (ownerA?.onImpact) {
         ownerA.onImpact({ other: ownerB });
       }
@@ -681,4 +681,12 @@ export class Game {
       }
     }
   };
+}
+
+/**
+ * True if this is an entity that is no longer in the game. A body with no
+ * owner (like a bare static wall) was never removed, so its contacts count.
+ */
+function wasRemoved(entity: Entity | undefined): boolean {
+  return entity != undefined && !entity.isAdded;
 }

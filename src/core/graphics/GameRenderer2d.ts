@@ -70,6 +70,10 @@ export class GameRenderer2d implements ViewportProvider {
         resizeTo: window,
         autoDensity: true,
         antialias: true,
+        // We call render() ourselves. With Pixi's ticker running, it would also
+        // draw the stage on every animation frame: twice a frame with vsync,
+        // and many times a frame without
+        autoStart: false,
         ...pixiOptions,
       })
       .then(() => {
@@ -90,14 +94,14 @@ export class GameRenderer2d implements ViewportProvider {
    * Gets the effective height of the renderer viewport in logical pixels.
    */
   getHeight(): number {
-    return this.app.renderer.height / this.app.renderer.resolution;
+    return this.app.renderer.height;
   }
 
   /**
    * Gets the effective width of the renderer viewport in logical pixels.
    */
   getWidth(): number {
-    return this.app.renderer.width / this.app.renderer.resolution;
+    return this.app.renderer.width;
   }
 
   getSize(): V2d {

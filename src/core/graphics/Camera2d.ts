@@ -190,12 +190,15 @@ export class Camera2d extends BaseEntity implements Entity {
     this.setPosition(x, y);
   }
 
-  /** Move the camera toward being centered on a position, with a target velocity */
+  /**
+   * Move the camera toward being centered on a (possibly moving) target.
+   * The camera matches the target's velocity and closes the remaining distance
+   * exponentially, at `stiffness` per second. Call this from `onTick`.
+   */
   smoothCenter(
     [x, y]: ReadonlyV2d,
     [vx, vy]: ReadonlyV2d = V([0, 0]),
-    stiffness: number = 1.0,
-    damping: number = 1.0,
+    stiffness: number = 4.0,
   ) {
     if (!this.isValidPosition(x) || !this.isValidPosition(y)) {
       console.warn("Camera2d.smoothCenter: Invalid position rejected:", x, y);
@@ -206,13 +209,10 @@ export class Camera2d extends BaseEntity implements Entity {
       return;
     }
 
-    const dx = x - this.x;
-    const dy = y - this.y;
-
-    const dt = this.game.averageDt;
-
-    this.vx += (stiffness * dx - damping * (this.vx - vx)) * dt;
-    this.vy += (stiffness * dy - damping * (this.vy - vy)) * dt;
+    // Closing more than the whole gap in one tick would overshoot
+    const k = Math.min(stiffness, this.game.ticksPerSecond);
+    this.vx = vx + k * (x - this.x);
+    this.vy = vy + k * (y - this.y);
   }
 
   smoothSetVelocity([vx, vy]: ReadonlyV2d, stiffness: number = 0.9) {

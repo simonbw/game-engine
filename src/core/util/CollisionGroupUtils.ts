@@ -11,12 +11,15 @@ export function makeCollisionGroup() {
   return 1 << _collisionGroupIndex++;
 }
 
-const groupNames = objectKeys(CollisionGroups).filter((name) => name !== "All");
 export function collisionGroupToNames(group: number): CollisionGroupName[] {
   if (group === CollisionGroups.All) {
     return ["All"];
   }
-  return groupNames.filter((name) => group & CollisionGroups[name]);
+  // Don't look at CollisionGroups at the top level of this module, because
+  // config/CollisionGroups imports this module to create the groups.
+  return objectKeys(CollisionGroups).filter(
+    (name) => name !== "All" && group & CollisionGroups[name],
+  );
 }
 
 export function collisionGroupsToNumber(
