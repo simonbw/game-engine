@@ -114,5 +114,9 @@ is `1` (legacy behavior).
 
 ## Common Tasks
 
-- **Raycast**: `world.raycast(from, to, options)` - see RaycastOptions for filtering
+- **Raycast**: `world.raycast(from, to, options)` - see RaycastOptions for filtering. `collisionMask` is matched against shapes' `collisionGroup` only; respect a shape's own mask in `filter`.
+- **Sensors moved by hand**: only pairs with a dynamic body are tested, so make it dynamic with `mass: 0, collisionResponse: false`.
+- **Queries between steps** see bodies where the last step left them: moving a body by hand doesn't update its AABB or broadphase cell until the next step.
+- **Resizing a shape**: not supported (a `Box`'s `width` doesn't change its vertices); replace the shape.
+- More tips for game code are under "Practical tips" in `README.md`.
 - **Body sleeping**: Configure via `world.sleepMode` (`SleepMode.NO_SLEEPING`, `BODY_SLEEPING`, `ISLAND_SLEEPING`; the last needs `islandSplit: true`)

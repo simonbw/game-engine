@@ -123,6 +123,16 @@ onLevelStarted({ level }: GameEventMap["levelStarted"]) {
 - Use unique `id` for single entities: `game.entities.getById("entityId")`
 - For singleton entities (one instance per game), use `game.entities.getSingleton(ClassName)` or `game.entities.tryGetSingleton(ClassName)` for optional access
 
+### Engine Gotchas
+
+The engine's practical tips are in `src/core/Readme.md` (entities, events, rendering gotchas) and `src/core/physics/README.md` ("Practical tips"). The ones that cause silent bugs:
+
+- `onRender` is only for looks; things out of view may skip it, so nothing else may depend on it having run.
+- Use `this.addChild(entity)` for anything that should be destroyed with its owner. Code after `await this.wait(...)` never runs once the entity is destroyed.
+- All randomness goes through `src/core/util/Random.ts`: never `Math.random()`, and never at module load.
+- Only pairs with a dynamic body are collision-tested. Moving a body by hand doesn't update its AABB until the next physics step.
+- Shaders that need GLSL ES 3.0 must start with `#version 300 es`, or Pixi compiles them as ES 1.0.
+
 ### Profiler
 
 Use the `profiler` singleton from `src/core/util/Profiler.ts` to measure performance:

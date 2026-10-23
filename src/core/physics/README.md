@@ -325,6 +325,17 @@ if (hit) {
 const allHits = world.raycastAll([0, 0], [10, 0]);
 ```
 
+`collisionMask` is only matched against each shape's `collisionGroup`. A ray ignores the shape's own `collisionMask`, so to respect it (say, fences that projectiles pass through), check it in `filter`.
+
+## Practical tips
+
+- **Only pairs with a dynamic body in them are tested for collisions.** Static and kinematic bodies never collide with each other. A sensor that you move by hand but that has to detect static things should be a dynamic body with `mass: 0, collisionResponse: false`.
+- **Moving a body by hand doesn't update its AABB**, or its place in the broadphase, until the next step. Queries and raycasts during a tick see moving bodies where the last step left them. That also makes them cheap: the spatial hash keeps static bodies in a hash that's built once, and only brings the hash of moving bodies up to date (for bodies that changed cells) the first time it's needed after each step.
+- `broadphase.aabbQuery(world, aabb, false)` asks for static bodies only, which skips updating the moving hash.
+- **Shapes can't be resized.** Changing a `Box`'s `width` doesn't change its vertices. Remove the shape and add a new one.
+- Contact equations and collision results are pooled and reused every step. Copy anything you want to keep from a contact event (see [Per-step objects are reused](./CLAUDE.md#per-step-objects-are-reused)).
+- The world has no gravity. A game that wants it applies the force itself.
+
 ## Simulation Pipeline
 
 The `World.step(dt)` method runs 12 steps each frame:

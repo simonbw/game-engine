@@ -42,6 +42,15 @@ this.body.addShape(new Circle({ radius: 1 /** in meters, generally */ }));
 
 If you want to give an entity multiple bodies, you can use the `bodies` field instead.
 
+### Children
+
+`this.addChild(entity)` makes an entity part of this one: it's added to the game with its parent (right away if the parent is already in the game) and destroyed along with it.
+Prefer it to adding things separately and remembering to clean them up.
+
+`this.game` throws if the entity isn't in a game. For the rare code that can run when it isn't (setup before `game.addEntity`, or something that can be hit again after it's destroyed in the same physics step), check `this.isAdded` or `this.isDestroyed` first.
+
+`await this.wait(seconds)` waits in game time. The timer is a child entity, so code after the `await` never runs once the entity is destroyed, and needs no guard.
+
 ### Events
 
 Entities respond to game events by implementing handler methods decorated with `@on`.
@@ -50,6 +59,9 @@ The three most important events are probably `add`, `tick`, and `render`.
 ```TypeScript
 import { on } from "./entity/handler";
 ```
+
+A handler is a method named `on` + the event's name, marked with `@on("eventName")`. The decorator is what registers it (an undecorated `onTick` is never called), checks that the name matches, and type checks the payload.
+By convention `on*` names are only used for event handlers, so methods that other code calls directly get other names (`handleDeath`, `hitByBullet`).
 
 #### `@on("add")`
 
@@ -75,8 +87,9 @@ The tick rate follows the display (60, 120, 144 per second...), so anything that
 
 Called on every frame right before the screen is redrawn.
 Useful for logic like syncing a sprite's position to its body.
-Keep it to looks: anything that affects the game belongs in `onTick`.
-Off-screen entities can skip their drawing work with `game.camera.isVisible(x, y, radius)`.
+Keep it to looks: anything that affects the game belongs in `onTick`, and nothing else may depend on a render handler having run.
+That way anything there can be many of can check `game.camera.isVisible(x, y, radius)` first and, when it's out of view, hide its sprite (`renderable = false`) and return.
+State other code reads should come from bodies or be worked out when it's asked for, not left behind by `onRender`.
 
 ```TypeScript
   @on("render")
@@ -104,6 +117,7 @@ Set `tickLayer` on an entity to pick a phase; everything on an earlier layer tic
 An entity without a `tickLayer` is in its parent's, so children tick with their parents.
 The camera ticks last so it always follows final positions.
 `render` handlers run in the same layers, so the profiler reports ticking and rendering per layer.
+That makes layers how a frame's time is sorted into categories: put anything new that there can be many of in the layer it belongs to, adding one if needed.
 
 ### Less important events
 
@@ -169,6 +183,10 @@ If you know there is only ever going to be 1 instance of an entity, you can give
 This lets you use `game.entities.getById('entityId')` to easily retrieve your entity.
 If you try to add an entity to the game with the same `id` as one that is already in the game, it will throw an error, so be cautious with this.
 
+For a class there's only ever one of, `game.entities.getSingleton(LevelManager)` finds it by class (`tryGetSingleton` returns `undefined` instead of throwing when there isn't one).
+
+For a kind of entity you look up often, register a type guard once with `game.entities.addFilter(isEnemy)`, and `game.entities.getByFilter(isEnemy)` then returns the matches without scanning every entity.
+
 ## Graphics
 
 Rendering is done with [Pixi.js](https://pixijs.com/). Every entity's `sprite`/`sprites` is a Pixi `Container`
@@ -204,6 +222,15 @@ if (game.camera.isVisible(x, y, radius)) { /* cull offscreen work */ }
 ```
 
 The camera rejects non-finite or absurdly large positions/zooms with a warning instead of corrupting the view.
+
+### Rendering gotchas (Pixi 8)
+
+- Use a plain Pixi `Container` as the parent of other display objects, not an empty `Sprite` or a `Graphics`. Position sprites from vectors with `sprite.position.copyFrom(v)`.
+- `renderer.width` and `height` are already in logical pixels. Don't divide by `resolution` again.
+- A `GlProgram` is only compiled as GLSL ES 3.0 if its fragment shader starts with `#version 300 es`. Otherwise Pixi compiles it as ES 1.0 and quietly `#define`s `in`/`out`/`finalColor` into the old keywords, so ES 3.0-only features (`flat`, `gl_ClipDistance`, integer attributes) fail with confusing errors. Extension directives have to come before any code, and Pixi puts lines of its own in front, so they have to be patched in after the version line (see `lighting/ShadowCasters.ts`).
+- Filters nested inside another filter render nothing if their `resolution`s differ. Give a filter on the stage `resolution: "inherit"`.
+- Rendering into a texture mid-frame (`renderer.render({ container, target, clear })`): pass `clearColor: [0, 0, 0, 0]`, or the target is cleared to the opaque canvas background. Filters don't work in such a pass (they size themselves to the canvas, not the target), and the root container's own `blendMode` is ignored, so wrap it in another `Container` if it needs to erase or add.
+- `RenderTexture.resize` doesn't update the texture coordinates of sprites already using the texture. A texture that changes size should be created afresh and reassigned.
 
 ## IO
 
@@ -340,7 +367,7 @@ It is possible to add audio effects to Sound Instances by overriding the `makeCh
 There are a lot of random utilities I've written over the years. In particular, make sure you check out:
 
 - [MathUtil.ts](./util/MathUtil.ts) — Various math stuff like polar/cartesian conversions, interpolations, clamping, etc.
-- [Random.ts](./util/Random.ts) — Useful for all sorts of random number stuff. I particularly like `choose(...options)`. All randomness should go through it: `seedRandom(seed)` makes a run reproducible.
+- [Random.ts](./util/Random.ts) — Useful for all sorts of random number stuff. I particularly like `choose(...options)`. All randomness should go through it: `seedRandom(seed)` makes a run reproducible. So don't call `Math.random()` directly, and don't draw random numbers when a module loads, since that happens before the game can set the seed. `reseedIfSeeded(offset)` restarts the sequence for something that has to come out the same however much randomness was used before it, and `makeRandom(seed)` is a generator of its own for randomness that's only for looks and mustn't disturb the seeded one.
 - [ColorUtils.ts](./util/ColorUtils.ts) — For dealing with converting colors between different formats, blending/lerping colors, etc.
 - [Profiler.ts](./util/Profiler.ts) — `profiler.measure("label", () => ...)` and the `@profile` decorator. Press Backquote in a dev build to see the results in the stats overlay.
 - [Spline.ts](./util/Spline.ts), [Geometry.ts](./util/Geometry.ts), [Triangulate.ts](./util/Triangulate.ts) — Catmull-Rom splines, point-in-polygon, ear-clipping triangulation.
