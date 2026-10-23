@@ -35,6 +35,9 @@ interface RenderInfo {
  * images and sounds load together.
  */
 export class ReactPreloader extends BaseEntity implements Entity {
+  /** So tools like `bin/record-clip.ts` can tell when loading is done */
+  tags = ["preloader"];
+
   private _resolve!: () => void;
   private _promise!: Promise<void>;
 
