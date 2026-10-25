@@ -367,11 +367,41 @@ It is possible to add audio effects to Sound Instances by overriding the `makeCh
 There are a lot of random utilities I've written over the years. In particular, make sure you check out:
 
 - [MathUtil.ts](./util/MathUtil.ts) — Various math stuff like polar/cartesian conversions, interpolations, clamping, etc.
-- [Random.ts](./util/Random.ts) — Useful for all sorts of random number stuff. I particularly like `choose(...options)`. All randomness should go through it: `seedRandom(seed)` makes a run reproducible. So don't call `Math.random()` directly, and don't draw random numbers when a module loads, since that happens before the game can set the seed. `reseedIfSeeded(offset)` restarts the sequence for something that has to come out the same however much randomness was used before it, and `makeRandom(seed)` is a generator of its own for randomness that's only for looks and mustn't disturb the seeded one.
+- [Random.ts](./util/Random.ts) — Useful for all sorts of random number stuff. I particularly like `choose(...options)`. See [Random numbers](#random-numbers) below.
 - [ColorUtils.ts](./util/ColorUtils.ts) — For dealing with converting colors between different formats, blending/lerping colors, etc.
 - [Profiler.ts](./util/Profiler.ts) — `profiler.measure("label", () => ...)` and the `@profile` decorator. Press Backquote in a dev build to see the results in the stats overlay.
 - [Spline.ts](./util/Spline.ts), [Geometry.ts](./util/Geometry.ts), [Triangulate.ts](./util/Triangulate.ts) — Catmull-Rom splines, point-in-polygon, ear-clipping triangulation.
 - [SparseSpatialHash.ts](./util/SparseSpatialHash.ts) — Cheap broadphase for your own game objects.
+
+### Random numbers
+
+All randomness goes through a `Random`, a seeded generator, so any run can be played again. Don't call `Math.random()` directly.
+
+```TypeScript
+choose("a", "b", "c");         // The free functions draw from the game's own Random...
+this.game.random.choose(a, b); // ...which is also game.random: the same one
+
+new Game({ seed: 123 });       // Plays a run again (the template takes ?seed=123)
+game.random.seed;              // What this run started from
+```
+
+The template logs the seed when it starts, so a run you didn't seed can still be played again.
+
+Something that has to come out the same however much randomness was used before it (a level generated over several frames) should draw from a sequence of its own, made with `fork`, and pass it along rather than using the free functions:
+
+```TypeScript
+function generateLevel(rng: Random) {
+  const width = rng.integer(20, 40);
+  const enemies = rng.shuffle(enemyTypes).slice(0, 3);
+}
+generateLevel(game.random.fork(`level-${n}`));
+```
+
+A fork is worked out from the seed and its name alone, so the same name gives the same sequence. The `Random` methods are the free functions without the `r`: `rUniform` is `uniform`, `rInteger` is `integer`, and so on. `WeightedSelector.pick(rng)` takes one too.
+
+`cosmeticRandom` is for things that only affect looks and sound (particle jitter, a sound's pitch or start time), so that changing them never changes a seeded run. The engine's own sound code uses it.
+
+Don't draw random numbers when a module loads. That happens before the game is seeded.
 
 ### Settings and tuning
 

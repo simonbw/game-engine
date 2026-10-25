@@ -23,10 +23,13 @@ import {
 } from "./sound/MasterVolumeState";
 import { gpuProfiler } from "./util/GpuProfiler";
 import { profile, profiler } from "./util/Profiler";
+import { Random, random } from "./util/Random";
 
 interface GameOptions {
   audio?: AudioContext;
   world?: World;
+  /** Seeds `game.random`, to play a run again. Without one, it picks its own. */
+  seed?: number;
 }
 
 /**
@@ -59,6 +62,12 @@ export class Game {
   readonly contactList: ContactList;
   /** A static physics body positioned at [0,0] with no shapes. Useful for constraints/springs */
   readonly ground: Body;
+  /**
+   * The game's random numbers: the same `Random` the free functions in
+   * `util/Random.ts` (`choose`, `rUniform`...) draw from. `random.seed` plays
+   * the run again.
+   */
+  readonly random: Random = random;
   /** The audio context that is connected to the output */
   readonly audio: AudioContext;
   /** Volume control for all sound output by the game. */
@@ -159,7 +168,11 @@ export class Game {
    * Create a new Game.
    * NOTE: You must call .init() before actually using the game.
    */
-  constructor({ audio, world }: GameOptions = {}) {
+  constructor({ audio, world, seed }: GameOptions = {}) {
+    if (seed !== undefined) {
+      random.reseed(seed);
+    }
+
     this.entities = new EntityList();
     this.entitiesToRemove = new Set();
 

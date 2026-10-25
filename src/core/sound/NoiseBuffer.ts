@@ -1,4 +1,4 @@
-import { rUniform } from "../util/Random";
+import { cosmeticRandom } from "../util/Random";
 
 /**
  * Generate a white noise AudioBuffer for use with synthesis-based sounds.
@@ -12,7 +12,7 @@ export function createNoiseBuffer(
   const buffer = audioContext.createBuffer(1, length, sampleRate);
   const data = buffer.getChannelData(0);
   for (let i = 0; i < length; i++) {
-    data[i] = rUniform(-1, 1);
+    data[i] = cosmeticRandom.uniform(-1, 1);
   }
   return buffer;
 }

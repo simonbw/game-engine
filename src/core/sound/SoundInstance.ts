@@ -5,7 +5,7 @@ import { on } from "../entity/handler";
 import { Game } from "../Game";
 import { getSoundBuffer, hasSoundBuffer } from "../resources/sounds";
 import { clamp } from "../util/MathUtil";
-import { rUniform } from "../util/Random";
+import { cosmeticRandom } from "../util/Random";
 
 export interface SoundOptions {
   pan?: number;
@@ -116,7 +116,7 @@ export class SoundInstance extends BaseEntity implements Entity {
     this.lastTick = game.audio.currentTime;
 
     const offset = this.options.randomStart
-      ? rUniform(0, this.sourceNode.buffer!.duration * 0.99)
+      ? cosmeticRandom.uniform(0, this.sourceNode.buffer!.duration * 0.99)
       : (this.options.offset ?? 0);
     this.startSource(offset);
   }
@@ -233,7 +233,9 @@ export class SoundInstance extends BaseEntity implements Entity {
   }
 
   jumpToRandom() {
-    this.restartSound(rUniform(0, this.sourceNode.buffer!.duration * 0.99));
+    this.restartSound(
+      cosmeticRandom.uniform(0, this.sourceNode.buffer!.duration * 0.99),
+    );
   }
 
   @on("pause")

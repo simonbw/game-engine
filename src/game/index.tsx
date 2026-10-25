@@ -23,7 +23,10 @@ async function main() {
   // Make the pixel art crisp
   TextureStyle.defaultOptions.scaleMode = "nearest";
 
-  const game = new Game();
+  // ?seed=123 plays a run again; the seed is logged either way
+  const seed = new URLSearchParams(window.location.search).get("seed");
+  const game = new Game({ seed: seed ? Number(seed) : undefined });
+  console.info(`Random seed ${game.random.seed} (play again with ?seed=)`);
   await game.init({ rendererOptions: { backgroundColor: 0x000010 } });
   // Make the game accessible from the console
   window.DEBUG = { game };
