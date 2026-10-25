@@ -10,3 +10,7 @@ api-docs/
 .claude/scheduled_tasks.lock
 .anthropic_api_key
 tests/output/
+
+# Electron Forge: the build and the packaged app
+.vite/
+out/

@@ -13,6 +13,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run generate-manifest` - Generate asset type definitions from resources folder
 - `npm run profile-game` - Run the game headless and print a CPU profile (see `.claude/skills/profile-game`)
 - `npm run docs` - Generate API docs with typedoc into `api-docs/`
+- `npm run electron -- [key=value ...]` - The desktop app in development: Forge starts its own Vite dev server (port 1236, so it can run next to `npm start`) and opens the game in an Electron window. `key=value` arguments become the page's query string
+- `npm run package` / `npm run make` - Build the desktop app into `out/` (`make` also zips it). macOS only for now
+- `npm run test:electron` - Package the desktop app, then test it (`tests/electron/`, not part of `npm test`)
 
 ## Core Architecture
 
@@ -49,6 +52,7 @@ The engine follows an Entity-based architecture where everything in the game ext
 - `src/config/` - Configuration files (layers, tick layers, collision groups, constants)
 - `resources/` - Assets (images, audio, fonts) with auto-generated TypeScript definitions
 - `bin/` - Dev scripts (asset type generation, dev server, profiler harness)
+- `electron/` - The desktop app (see "Desktop App" below)
 - `tests/` - Playwright end-to-end tests
 
 ### Entity Lifecycle & Event Handlers
@@ -152,6 +156,16 @@ The game loop automatically profiles `Game.nextFrame`, `Game.tick`, each tick la
 The profiler panel also times the GPU's work (`src/core/util/GpuProfiler.ts`, WebGL timer queries), and while it's open, each entity class's handlers (`profiler.entityDetail`).
 For benchmarks, `profiler.startCapture()` / `stopCapture()` give exact averages over a window.
 In a dev build, press Backquote to cycle through the stats overlay panels, and Backslash to open the tuning panel for `//#tunable` values.
+
+### Desktop App
+
+The game also runs as a desktop app, with Electron Forge (`forge.config.ts`). It's the same Vite build as the web version; `electron/vite.renderer.config.mts` only changes the dev server's port and the output folder. Each game sets its name (`productName` in `package.json`), bundle id (`forge.config.ts`) and icon (`electron/icon.png` and `icon.icns`).
+
+- `electron/main.ts` opens one window (fullscreen by default, its size and fullscreen remembered in `window-state.json` in the user data folder) and serves the build at `app://game/`, not `file://`: `fetch()` (sounds) doesn't work on `file://`, and localStorage is kept per origin, so a fixed origin keeps saves across updates. It sends the same cross-origin isolation headers as the dev server.
+- `electron/preload.ts` gives the page `window.desktop` (quit, real fullscreen, the display's refresh rate), which the game reads through `src/core/desktop.ts`. On the web it's undefined, so desktop-only things (a Quit button, a Fullscreen setting) check for it. `Game` caps its measured refresh rate at the display's.
+- `GAME_HEADLESS=1` runs the app hidden and muted. `GAME_SMOKE=1` also quits with 0 once the game calls `smokeTestReady()` (`src/game/index.tsx` does, once it's set up), or 1 after a timeout. `GAME_USER_DATA` points it at another user data folder.
+- Playwright can't drive the packaged app, because its fuses (`forge.config.ts`) turn off the debugging Playwright needs. `tests/electron/` drives the built but unpackaged app and only smoke-launches the packaged one.
+- Not done yet: signing and notarization (builds are unsigned, so macOS makes people right-click → Open), Windows and Linux makers, Steam, auto-update, and a Content-Security-Policy (Electron warns about it in development only; Pixi 8 needs `pixi.js/unsafe-eval` under a strict one).
 
 ## Development Practice
 

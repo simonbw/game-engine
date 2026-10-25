@@ -10,6 +10,8 @@ TODO: Write intro
 4. Run `npm start` to start the dev server
 5. You should now be able to play the game at http://localhost:1234
 
+To run it as a desktop app instead, run `npm run electron`. `npm run make` builds the app into `out/`.
+
 ## Structure of this project
 
 ### `src/`

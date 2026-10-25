@@ -1,4 +1,5 @@
 import { TextureStyle } from "pixi.js";
+import { smokeTestReady } from "../core/desktop";
 import { Game } from "../core/Game";
 import { setPersistedStateNamespace } from "../core/state/PersistedState";
 import { TuningPanel } from "../core/tuning/TuningPanel";
@@ -53,6 +54,9 @@ async function main() {
     level: 1,
     message: "Hello from main!",
   });
+
+  // In the desktop app (`npm run electron`), its smoke test waits for this
+  smokeTestReady();
 }
 
 window.addEventListener("load", main);

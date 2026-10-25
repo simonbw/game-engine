@@ -2,6 +2,7 @@ import { DEFAULT_LAYER, LAYERS } from "../config/layers";
 import { TICK_LAYERS } from "../config/tickLayers";
 import { ContactList } from "./ContactList";
 import { EntityList } from "./EntityList";
+import { desktop } from "./desktop";
 import { FramePacer, RefreshRateEstimator } from "./FramePacing";
 import { V } from "./Vector";
 import { BaseGameEvents } from "./entity/BaseGameEvents";
@@ -85,7 +86,10 @@ export class Game {
    * The display's refresh rate (Hz), as measured, unless `refreshRateOverride`
    * is set. See `RefreshRateEstimator`.
    */
-  private readonly refreshRateEstimator = new RefreshRateEstimator(60);
+  private readonly refreshRateEstimator = new RefreshRateEstimator(
+    60,
+    desktop?.displayFrequency() || undefined,
+  );
   private readonly framePacer = new FramePacer();
   /**
    * Pretends the display runs at this rate, and that every animation frame
@@ -475,6 +479,10 @@ export class Game {
       : (time - this.lastFrameTime) / 1000;
     this.lastFrameTime = time;
     if (!this.manualFrames) {
+      // The desktop app knows the display's rate (which changes when the
+      // window moves to another display); a browser can only measure it
+      this.refreshRateEstimator.maxRate =
+        desktop?.displayFrequency() || undefined;
       this.refreshRateEstimator.addFrame(time / 1000);
       const frames = this.framePacer.framesFor(
         elapsed,

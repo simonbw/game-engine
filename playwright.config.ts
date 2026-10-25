@@ -9,6 +9,8 @@ export default defineConfig({
   timeout: 60000,
   // Browser tests only; tests/**/*.test.ts are unit tests run by `tsx --test`
   testMatch: "**/*.spec.ts",
+  // The desktop app's tests have their own config: `npm run test:electron`
+  testIgnore: "**/electron/**",
   workers: 1,
   use: {
     baseURL: `http://localhost:${TEST_PORT}`,

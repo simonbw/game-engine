@@ -150,7 +150,11 @@ export class ReactPreloader extends BaseEntity implements Entity {
     await Promise.all(
       Object.entries(this.manifest.images).map(async ([name, url]) => {
         try {
-          await Pixi.Assets.load({ alias: name, src: url });
+          // Pixi resolves URLs itself, and only knows http(s) origins: under
+          // the desktop app's app://game/ it would turn /assets/x.png into
+          // app://assets/x.png. Full URLs it leaves alone.
+          const src = new URL(url, document.baseURI).href;
+          await Pixi.Assets.load({ alias: name, src });
         } catch (e) {
           console.warn(`Image failed to load: ${url}`, e);
         }

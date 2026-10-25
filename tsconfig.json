@@ -27,6 +27,8 @@
     "resources",
     "vite-plugins",
     "playwright.config.ts",
-    "vite.config.mts"
+    "vite.config.mts",
+    "electron",
+    "forge.config.ts"
   ]
 }
