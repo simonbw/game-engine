@@ -1,8 +1,9 @@
 import { defineConfig } from "@playwright/test";
+import { PORTS } from "./ports.mjs";
 
 // Use a different port than the dev server so tests can run alongside it.
 // TEST_PORT overrides it so several checkouts can run tests at the same time.
-const TEST_PORT = Number(process.env.TEST_PORT ?? 3466);
+const TEST_PORT = Number(process.env.TEST_PORT ?? PORTS.test);
 
 export default defineConfig({
   testDir: "./tests",

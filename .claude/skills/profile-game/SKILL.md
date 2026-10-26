@@ -34,7 +34,7 @@ That's it — by default it spawns its own isolated dev server on a free port (s
 | `--json` | Emit JSON instead of the formatted table (useful for programmatic comparison). |
 | `--set <key=value>` | Inject a localStorage entry before the page loads (repeatable). Useful for settings the game reads at startup. |
 | `--headed` | Show the browser window (for debugging the harness itself). |
-| `--url <baseUrl>` | Reuse an existing dev server (e.g. `http://localhost:1234`) instead of spawning. |
+| `--url <baseUrl>` | Reuse an existing dev server (e.g. `http://localhost:<port>`, the port from `ports.mts`) instead of spawning. |
 | `--port <n>` | Force the spawned server to a specific port. |
 | `--game-start-timeout <sec>` | Raise if the game takes >60s to initialize (cold cache). |
 

@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run generate-manifest` - Generate asset type definitions from resources folder
 - `npm run profile-game` - Run the game headless and print a CPU profile (see `.claude/skills/profile-game`)
 - `npm run docs` - Generate API docs with typedoc into `api-docs/`
-- `npm run electron -- [key=value ...]` - The desktop app in development: Forge starts its own Vite dev server (port 1236, so it can run next to `npm start`) and opens the game in an Electron window. `key=value` arguments become the page's query string
+- `npm run electron -- [key=value ...]` - The desktop app in development: Forge starts its own Vite dev server (on its own port, so it can run next to `npm start`) and opens the game in an Electron window. `key=value` arguments become the page's query string
 - `npm run package` / `npm run make` - Build the desktop app into `out/` (`make` also zips it). macOS only for now
 - `npm run test:electron` - Package the desktop app, then test it (`tests/electron/`, not part of `npm test`)
 
@@ -26,6 +26,10 @@ This is a custom 2D game engine built on TypeScript, with three main technology 
 - **Pixi.js** - 2D rendering engine for graphics and sprites
 - **Custom physics** - A 2D rigid body engine in `src/core/physics/` (a TypeScript port of p2.js with a faster solver). See `src/core/physics/CLAUDE.md`.
 - **Vite** - Bundler and dev server (`vite.config.mts`, plugins in `vite-plugins/`). It doesn't type check, so always run `npm run tsc` too.
+
+### Ports
+
+The dev server, the desktop app's dev server and the browser tests' server each have a port, all set in `ports.mts`. Each game picks its own (see "Starting a new game" in `Readme.md`), so mention them by name, not number.
 
 ### Entity-Component System
 

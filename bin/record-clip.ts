@@ -5,7 +5,7 @@
  *
  *   npm run clip -- [--path "/?level=2"] [--ready "<expression>"]
  *     [--setup "<code>" | --setup setup.js] [--skip 0] [--seconds 6] [--fps 60] [--size 1280x720] [--dpr 1] [--crf 12]
- *     [--out tests/output/clip.mp4] [--keep-frames] [--url http://localhost:1234]
+ *     [--out tests/output/clip.mp4] [--keep-frames] [--url http://localhost:<port>]
  *
  * It's recorded a frame at a time rather than as a screen recording: once
  * the page is ready, the game's own loop is stopped (`Game.manualFrames`),

@@ -13,9 +13,12 @@
  * Storage keys are namespaced (default `"game:setting:"`) so they don't
  * collide with save files or unrelated localStorage keys. Call
  * `setPersistedStateNamespace("my-game:setting:")` once at startup, before
- * any setting is read, to pick a per-game namespace. A one-time migration
- * copies values from the legacy bare keys (e.g. `"renderScale"`) the first
- * time the namespaced key is read missing.
+ * any setting is read, to pick a per-game namespace. A game that saved its
+ * settings under bare keys (e.g. `"renderScale"`) before namespacing can pass
+ * `{ migrateLegacyKeys: true }` to copy them over the first time each
+ * namespaced key is read missing. It's off by default because a bare key
+ * can't say which game wrote it: games share localStorage when they run on
+ * the same origin, so a new game would take over another game's settings.
  *
  * Subscribers fire synchronously after `set()` mutates the in-memory
  * value and writes to storage. They receive the new value as their
@@ -24,14 +27,29 @@
  */
 
 let namespace = "game:setting:";
+let migrateLegacyKeys = false;
+
+export interface PersistedStateNamespaceOptions {
+  /**
+   * Move each setting's value from its bare legacy key (saved before
+   * namespacing) into the namespace, the first time it's read missing. Only
+   * for games that had settings before namespacing: any other game would take
+   * over the settings of whichever game last used the bare key.
+   */
+  migrateLegacyKeys?: boolean;
+}
 
 /**
  * Set the localStorage key prefix used by every persisted setting.
  * Must be called before any setting is first read (settings read lazily on
  * first `get()`), so do it at the top of your game's entry point.
  */
-export function setPersistedStateNamespace(prefix: string): void {
+export function setPersistedStateNamespace(
+  prefix: string,
+  options: PersistedStateNamespaceOptions = {},
+): void {
   namespace = prefix;
+  migrateLegacyKeys = options.migrateLegacyKeys ?? false;
 }
 
 type Subscriber<T> = (value: T) => void;
@@ -123,7 +141,9 @@ export function createPersistedState<T>(
   const validate = config.validate;
 
   function readInitial(): T {
-    const raw = migrateLegacyKey(namespacedKey(), config.key);
+    const raw = migrateLegacyKeys
+      ? migrateLegacyKey(namespacedKey(), config.key)
+      : safeGetItem(namespacedKey());
     if (raw === null) return config.default;
     let parsed: unknown;
     try {

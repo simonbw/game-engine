@@ -407,7 +407,7 @@ Don't draw random numbers when a module loads. That happens before the game is s
 
 ### Settings and tuning
 
-- `state/PersistedState.ts` — `createPersistedState({ key, default })` gives you a get/set/subscribe setting backed by localStorage. Call `setPersistedStateNamespace("my-game:setting:")` once at startup.
+- `state/PersistedState.ts` — `createPersistedState({ key, default })` gives you a get/set/subscribe setting backed by localStorage. Call `setPersistedStateNamespace("my-game:setting:")` once at startup. Pass `{ migrateLegacyKeys: true }` only if the game saved settings under bare keys before namespacing.
 - `tuning/` — Put `//#tunable { min: 0, max: 10 }` on the line above a `let` and a dev-only Vite plugin registers it with the `TuningPanel` (toggle with Backslash) so you can drag it live.
 
 ## Vector

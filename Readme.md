@@ -8,9 +8,20 @@ TODO: Write intro
 2. Clone this repo
 3. Run `npm install` inside this repo
 4. Run `npm start` to start the dev server
-5. You should now be able to play the game at http://localhost:1234
+5. You should now be able to play the game at http://localhost:1234 (the `dev` port in `ports.mts`)
 
 To run it as a desktop app instead, run `npm run electron`. `npm run make` builds the app into `out/`.
+
+## Starting a new game
+
+This repo is a template, and each game made from it should change a few things first, so it doesn't collide with the template or with other games:
+
+1. **Ports**, in `ports.mts`: the dev server, the desktop app's dev server and the browser tests' server.
+   Pick three that no other game uses. Two games on the same ports can't run at once, and they share one localStorage, since it's kept per origin and the port is part of the origin.
+2. **Name**: `name` and `productName` in `package.json`. `productName` is the desktop app's name and its user data folder.
+3. **Bundle id**: `appBundleId` in `forge.config.ts`.
+4. **Settings namespace**: the `setPersistedStateNamespace(...)` call in `src/game/index.tsx`, so the game's settings are kept under its own keys.
+5. **Icon**: `electron/icon.png` and `electron/icon.icns`.
 
 ## Structure of this project
 

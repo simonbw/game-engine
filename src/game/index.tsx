@@ -18,7 +18,8 @@ declare global {
 }
 
 async function main() {
-  // Keep this game's persisted settings separate from other games' localStorage
+  // Keep this game's persisted settings separate from other games' localStorage.
+  // Each game picks its own (see "Starting a new game" in Readme.md)
   setPersistedStateNamespace("game-engine:setting:");
 
   // Make the pixel art crisp

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { defineConfig } from "vite";
+import { PORTS } from "./ports.mjs";
 import { plainManifestUrls } from "./vite-plugins/plainManifestUrls.mjs";
 import { tunables } from "./vite-plugins/tunables.mjs";
 
@@ -18,7 +19,7 @@ export default defineConfig({
   publicDir: false,
   plugins: [tunables(), plainManifestUrls()],
   server: {
-    port: process.env.PORT ? parseInt(process.env.PORT, 10) : 1234,
+    port: process.env.PORT ? parseInt(process.env.PORT, 10) : PORTS.dev,
     strictPort: true,
     headers: ISOLATION_HEADERS,
     // The game can't hot swap modules, and a reload in the middle of playing

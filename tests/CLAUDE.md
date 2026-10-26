@@ -52,4 +52,4 @@ The dev server serves source modules by path, so a test can `import("/core/...")
 - `npm test` - Run the unit tests, then the browser tests
 - `npm run test:unit` / `npm run test:e2e` - Run one kind
 - `npm run test:electron` - The desktop app (`tests/electron/`, its own Playwright config, not part of `npm test`). Packages the app first, then launches the built app hidden with a throwaway user data folder (boots over `app://`, has the bridge, keeps localStorage across a relaunch, quits) and smoke-launches the packaged `.app`
-- The browser tests start their own dev server on port 3466. Set `TEST_PORT` to use another (for running tests in several checkouts at once), and `TEST_REUSE_SERVER=1` to use a dev server already running on that port.
+- The browser tests start their own dev server, on `PORTS.test` from `ports.mts`. Set `TEST_PORT` to use another (for running tests in several checkouts at once), and `TEST_REUSE_SERVER=1` to use a dev server already running on that port.
