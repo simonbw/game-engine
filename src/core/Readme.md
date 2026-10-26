@@ -342,6 +342,8 @@ Lights are static unless made `dynamic`, which matters for how much they cost. S
 Playing sounds in the game is done by creating instances of the `SoundInstance` entity and adding them to the game.
 `offset` and `duration` options play part of a sound, and `PositionalSound` pans and fades a sound by where it is.
 
+Browsers keep audio suspended until the player clicks or presses a key, so `Game` resumes `game.audio` on the first `pointerdown` or `keydown` (and again whenever it's been suspended since, as Safari does). Games don't need to call `resume()` themselves, but nothing is heard before that first input.
+
 ### Music
 
 Files under `resources/audio/music/` are their own resource type (`MusicName`) and aren't preloaded, since decoded audio takes about 21 MB a minute.

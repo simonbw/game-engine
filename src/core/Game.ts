@@ -40,6 +40,9 @@ interface GameOptions {
  */
 const MIN_TICK_RATE = 60;
 
+/** Input that counts as a user gesture, so the audio can be resumed from it */
+const RESUME_AUDIO_EVENTS = ["pointerdown", "keydown"] as const;
+
 /** Top Level control structure */
 export class Game {
   /** Keeps track of entities in lots of useful ways */
@@ -209,6 +212,19 @@ export class Game {
 
   private readonly unsubscribeMasterVolume: () => void;
 
+  /**
+   * Browsers start audio suspended until the page has been clicked or typed
+   * in, and the audio context is made before that, so it stays silent until
+   * it's resumed from one of those. It can be suspended again later (Safari
+   * does, when the device's audio is interrupted), so this keeps listening.
+   * In the capture phase, so a handler that stops the event can't block it.
+   */
+  private readonly resumeAudio = () => {
+    if (this.audio.state !== "running") {
+      void this.audio.resume();
+    }
+  };
+
   /** Initialize the game. By default also starts the animation-frame loop. */
   async init({
     rendererOptions = {},
@@ -231,6 +247,10 @@ export class Game {
     ) => this.dispatch(event, data as GameEventMap[E], false);
     this.io = new IOManager(this.renderer.canvas, dispatchIo);
     this.addEntity(this.renderer.camera);
+
+    for (const type of RESUME_AUDIO_EVENTS) {
+      window.addEventListener(type, this.resumeAudio, { capture: true });
+    }
 
     if (autoStart) {
       this.startLoop();
@@ -318,6 +338,9 @@ export class Game {
     this.renderer.destroy();
 
     // Close audio context
+    for (const type of RESUME_AUDIO_EVENTS) {
+      window.removeEventListener(type, this.resumeAudio, { capture: true });
+    }
     this.unsubscribeMasterVolume();
     this.audio.close();
   }

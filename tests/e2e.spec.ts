@@ -174,6 +174,31 @@ test("game initializes and runs without errors", async ({ page }) => {
         .length > 0,
   );
 
+  // --- Assertion: A suspended audio context is resumed by a click, and by a
+  // key press, and its clock moves again. Suspended by hand, since headless
+  // Chrome never suspends it for autoplay ---
+  for (const gesture of ["click", "key"] as const) {
+    await page.evaluate(() => window.DEBUG.game!.audio.suspend());
+    const suspendedAt = await page.evaluate(() => {
+      const audio = window.DEBUG.game!.audio;
+      return { state: audio.state, time: audio.currentTime };
+    });
+    expect(suspendedAt.state).toBe("suspended");
+    if (gesture === "click") {
+      await page.mouse.click(640, 360);
+    } else {
+      await page.keyboard.press("Shift");
+    }
+    await page.waitForFunction(
+      (time) => {
+        const audio = window.DEBUG.game!.audio;
+        return audio.state === "running" && audio.currentTime > time;
+      },
+      suspendedAt.time,
+      { timeout: 5000 },
+    );
+  }
+
   // --- Assertion: The first filter on the stage can be added and removed
   // (Pixi leaves `filters` unset until there is one) ---
   const filterCount = await page.evaluate(() => {
