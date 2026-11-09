@@ -142,6 +142,63 @@ test("game initializes and runs without errors", async ({ page }) => {
   expect(stepped.frames).toBe(10);
   expect(stepped.ticks).toBe(10 * stepped.ticksPerFrame);
 
+  // --- Assertion: With a fixed tick rate, a display it doesn't divide evenly
+  // (120 ticks a second on a 144 Hz display) still gets exactly that many
+  // ticks a second, all the same length, with frames never more than one
+  // tick apart ---
+  const fixed = await page.evaluate(async () => {
+    const load = <T>(path: string): Promise<T> => import(path);
+    const { BaseEntity } = await load<
+      typeof import("../src/core/entity/BaseEntity")
+    >("/core/entity/BaseEntity.ts");
+    const { on } = await load<typeof import("../src/core/entity/handler")>(
+      "/core/entity/handler.ts",
+    );
+    class TickWatcher extends BaseEntity {
+      dts = new Set<number>();
+      onTick({ dt }: { dt: number }) {
+        this.dts.add(dt);
+      }
+    }
+    // The decorator, applied by hand (this code isn't compiled with them)
+    on("tick")(
+      TickWatcher.prototype,
+      "onTick",
+      Object.getOwnPropertyDescriptor(TickWatcher.prototype, "onTick")!,
+    );
+
+    const game = window.DEBUG.game!;
+    game.manualFrames = true;
+    game.refreshRateOverride = 144;
+    game.fixedTickRate = 120;
+    const watcher = game.addEntity(new TickWatcher());
+    const perFrame: number[] = [];
+    const before = game.ticknumber;
+    for (let i = 0; i < 144; i++) {
+      const frameStart = game.ticknumber;
+      game.stepFrames(1);
+      perFrame.push(game.ticknumber - frameStart);
+    }
+    const result = {
+      ticks: game.ticknumber - before,
+      ticksPerSecond: game.ticksPerSecond,
+      ticksPerFrame: game.ticksPerFrame,
+      dts: [...watcher.dts],
+      min: Math.min(...perFrame),
+      max: Math.max(...perFrame),
+    };
+    watcher.destroy();
+    game.fixedTickRate = undefined;
+    game.refreshRateOverride = undefined;
+    game.manualFrames = false;
+    return result;
+  });
+  expect(fixed.ticksPerSecond).toBe(120);
+  expect(fixed.ticksPerFrame).toBeCloseTo(120 / 144);
+  expect(fixed.ticks).toBe(120);
+  expect(fixed.dts).toEqual([1 / 120]);
+  expect(fixed.max - fixed.min).toBe(1);
+
   // --- Assertion: The mouse wheel reaches entities as `wheel` events ---
   await page.evaluate(async () => {
     const load = <T>(path: string): Promise<T> => import(path);

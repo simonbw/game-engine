@@ -70,8 +70,9 @@ import { on } from "../core/entity/handler";
 class MyEntity extends BaseEntity {
   @on("tick")
   onTick({ dt }: GameEventMap["tick"]) {
-    // Called every physics tick: one per display refresh (60, 120, 144 Hz...),
-    // so scale anything that changes per tick by dt
+    // Called every physics tick: one per display refresh (60, 120, 144 Hz...)
+    // unless the game fixes the rate, so scale anything that changes per tick
+    // by dt
   }
 
   @on("render")

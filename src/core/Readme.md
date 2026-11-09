@@ -12,7 +12,7 @@ Some things that `Game` does:
 
 - Initializes the physics, rendering, and input handling systems
 - Keeps track of entities
-- Runs the game loop: one frame (a `tick` and a `render`) per display refresh, with `dt` the ideal frame time (1 / refresh rate) rather than however long the frame took (see `FramePacing.ts`). The refresh rate is measured from animation frame timestamps, `frameRateLimit` caps it, frames below 60 fps run more than one tick, and a dropped frame is caught up (at most 3 frames, then the game slows down). `manualFrames` and `stepFrames(n)` run frames by hand, for recording video or stepping from the console.
+- Runs the game loop: one frame (a `tick` and a `render`) per display refresh, with `dt` the ideal frame time (1 / refresh rate) rather than however long the frame took (see `FramePacing.ts`). The refresh rate is measured from animation frame timestamps, `frameRateLimit` caps it, frames below 60 fps run more than one tick (or, with `fixedTickRate`, every frame runs however many ticks of that rate are due), and a dropped frame is caught up (at most 3 frames, then the game slows down). `manualFrames` and `stepFrames(n)` run frames by hand, for recording video or stepping from the console.
 - Runs the event system, dispatching events and calling the appropriate handlers on entities
 
 ## Entities
@@ -72,6 +72,8 @@ Useful for initializing stuff that you need access to the `game` for.
 
 If you want an entity to do something every physics step, put that logic in the `onTick()` method.
 The tick rate follows the display (60, 120, 144 per second...), so anything that changes per tick has to scale with `dt`: a velocity times `dt`, or a smoothing factor as `Math.pow(kept, dt * 60)`, never a fixed amount per tick.
+
+A game whose physics has to come out the same on every display can fix the rate instead: `new Game({ fixedTickRate: 240 })`. Each frame then runs however many ticks are due, all `1 / 240` long. When the display's rate doesn't divide the tick rate, some frames run one more tick than others, and nothing interpolates between ticks when drawing, so pick a rate the common displays divide (720 suits 60, 120, 144 and 240), or a high one, where the unevenness is small.
 
 ```TypeScript
   @on("tick")
