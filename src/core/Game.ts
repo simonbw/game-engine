@@ -31,6 +31,14 @@ interface GameOptions {
   world?: World;
   /** Seeds `game.random`, to play a run again. Without one, it picks its own. */
   seed?: number;
+  /**
+   * Tick at exactly this rate (ticks per second of game time), however fast
+   * the display is, instead of once per refresh. Frames then run however many
+   * ticks are due: always the same number when the display's rate divides
+   * this one, otherwise sometimes one more. For physics that has to come out
+   * the same on every display. Without it, ticks follow the display.
+   */
+  fixedTickRate?: number;
 }
 
 /**
@@ -122,14 +130,31 @@ export class Game {
   get targetFrameRate(): number {
     return Math.min(this.refreshRate, this.frameRateLimit ?? Infinity);
   }
-  /** Ticks per rendered frame: 1, unless the frame rate is below `MIN_TICK_RATE` */
+  /**
+   * The tick rate, if the game fixed one (`GameOptions.fixedTickRate`).
+   * Undefined ticks once per refresh. Can be changed while the game runs.
+   */
+  fixedTickRate: number | undefined;
+  /**
+   * Ticks per rendered frame: 1, unless the frame rate is below
+   * `MIN_TICK_RATE`. With a `fixedTickRate`, the average, which may not be a
+   * whole number.
+   */
   get ticksPerFrame(): number {
+    if (this.fixedTickRate) {
+      return this.fixedTickRate / this.targetFrameRate;
+    }
     return Math.max(1, Math.ceil(MIN_TICK_RATE / this.targetFrameRate));
   }
   /** Ticks per second at regular speed */
   get ticksPerSecond(): number {
-    return this.targetFrameRate * this.ticksPerFrame;
+    return this.fixedTickRate ?? this.targetFrameRate * this.ticksPerFrame;
   }
+  /**
+   * With a `fixedTickRate`, the ticks that are due but not yet run, as a
+   * fraction of a tick: how far past the last tick the frame being drawn is
+   */
+  private tickBacklog = 0;
   /** Seconds simulated per tick at regular speed */
   get tickDuration(): number {
     return 1 / this.ticksPerSecond;
@@ -175,7 +200,8 @@ export class Game {
    * Create a new Game.
    * NOTE: You must call .init() before actually using the game.
    */
-  constructor({ audio, world, seed }: GameOptions = {}) {
+  constructor({ audio, world, seed, fixedTickRate }: GameOptions = {}) {
+    this.fixedTickRate = fixedTickRate;
     if (seed !== undefined) {
       random.reseed(seed);
     }
@@ -559,7 +585,7 @@ export class Game {
     this.slowTick(renderDt * this.slowMo);
 
     const tickDt = this.tickDuration * this.slowMo;
-    const ticks = frames * this.ticksPerFrame;
+    const ticks = this.ticksForFrames(frames);
 
     // Distribute real audio time evenly across this frame's ticks
     const audioNow = this.audio.currentTime;
@@ -587,6 +613,19 @@ export class Game {
     this.afterPhysics();
 
     this.render(renderDt);
+  }
+
+  /** How many ticks to run for `frames` frames */
+  private ticksForFrames(frames: number): number {
+    if (!this.fixedTickRate) {
+      return frames * this.ticksPerFrame;
+    }
+    this.tickBacklog += frames * this.ticksPerFrame;
+    // The epsilon keeps rounding error from dropping a tick when the rates
+    // divide evenly (240 / 60 * 15 frames is 59.99999...)
+    const ticks = Math.floor(this.tickBacklog + 1e-6);
+    this.tickBacklog = Math.max(0, this.tickBacklog - ticks);
+    return ticks;
   }
 
   /** Actually remove all the entities slated for removal from the game. */
